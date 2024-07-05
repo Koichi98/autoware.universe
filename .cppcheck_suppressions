@@ -6,7 +6,6 @@ constVariable
 constVariableReference
 containerOutOfBounds
 // cspell: ignore cstyle
-cstyleCast
 duplicateBranch
 duplicateBreak
 funcArgNamesDifferent
