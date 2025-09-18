@@ -41,8 +41,10 @@ ShapeEstimationNode::ShapeEstimationNode(const rclcpp::NodeOptions & node_option
 : Node("shape_estimation", node_options)
 {
   using std::placeholders::_1;
-  sub_ = create_subscription<DetectedObjectsWithFeature>(
-    "input", rclcpp::QoS{1}, std::bind(&ShapeEstimationNode::callback, this, _1));
+  AUTOWARE_SUBSCRIPTION_OPTIONS sub_options;
+  sub_ = AUTOWARE_CREATE_SUBSCRIPTION(
+    DetectedObjectsWithFeature, "input", rclcpp::QoS{1},
+    std::bind(&ShapeEstimationNode::callback, this, _1), sub_options);
 
   pub_ = create_publisher<DetectedObjectsWithFeature>("objects", rclcpp::QoS{1});
   bool use_corrector = declare_parameter<bool>("use_corrector");

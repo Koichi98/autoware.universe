@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <launch>
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" default="/opt/ros/humble/lib/libagnocast_heaphook.so" description="path to agnocast heaphook library"/>
+
   <!-- dummy detection and sensor data -->
   <arg name="visible_range" default="300.0"/>
   <arg name="real" default="true"/>
@@ -27,6 +30,7 @@
       <include file="$(find-pkg-share autoware_shape_estimation)/launch/shape_estimation.launch.xml">
         <arg name="input/objects" value="/perception/object_recognition/detection/labeled_clusters"/>
         <arg name="output/objects" value="/perception/object_recognition/detection/objects_with_feature"/>
+        <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
       </include>
     </group>
     <group unless="$(var real)">

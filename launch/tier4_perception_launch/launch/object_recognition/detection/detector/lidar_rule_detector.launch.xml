@@ -3,6 +3,9 @@
   <!-- Current namespace -->
   <arg name="ns" description="current namespace"/>
 
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" default="/opt/ros/humble/lib/libagnocast_heaphook.so" description="path to agnocast heaphook library"/>
+
   <!-- External interfaces -->
   <arg name="node/pointcloud_container"/>
   <arg name="input/pointcloud_map/pointcloud"/>
@@ -35,6 +38,7 @@
       <include file="$(find-pkg-share autoware_shape_estimation)/launch/shape_estimation.launch.xml">
         <arg name="input/objects" value="$(var shape_estimation/input/objects)"/>
         <arg name="output/objects" value="$(var shape_estimation/output/objects)"/>
+        <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
       </include>
     </group>
 

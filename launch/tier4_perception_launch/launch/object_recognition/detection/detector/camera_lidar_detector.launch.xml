@@ -3,6 +3,9 @@
   <!-- Current namespace -->
   <arg name="ns" description="current namespace"/>
 
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <!-- Lidar + Camera detector parameters -->
   <arg name="lidar_detection_model_type">
     <choice value="bevfusion"/>
@@ -177,6 +180,7 @@
       <include file="$(find-pkg-share autoware_shape_estimation)/launch/shape_estimation.launch.xml">
         <arg name="input/objects" value="$(var shape_estimation1/input/clusters)"/>
         <arg name="output/objects" value="$(var shape_estimation1/output/objects)"/>
+        <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
       </include>
     </group>
 
@@ -233,6 +237,7 @@
         <include file="$(find-pkg-share autoware_shape_estimation)/launch/shape_estimation.launch.xml">
           <arg name="input/objects" value="$(var shape_estimation2/input/clusters)"/>
           <arg name="output/objects" value="$(var shape_estimation2/output/objects)"/>
+          <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
         </include>
       </group>
       <!-- convert DynamicObjectsWithFeatureArray to DynamicObjects -->

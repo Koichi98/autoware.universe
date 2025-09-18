@@ -5,6 +5,7 @@ find_package(autoware_cmake REQUIRED)
 autoware_package()
 
 find_package(PCL REQUIRED)
+find_package(autoware_agnocast_wrapper REQUIRED)
 
 include_directories(
   include
@@ -37,6 +38,8 @@ target_link_libraries(${PROJECT_NAME}_node_core
   ${PROJECT_NAME}_lib
 )
 
+autoware_agnocast_wrapper_setup(${PROJECT_NAME}_node_core)
+
 rclcpp_components_register_node(${PROJECT_NAME}_node_core
   PLUGIN "autoware::euclidean_cluster::EuclideanClusterNode"
   EXECUTABLE euclidean_cluster_node
@@ -49,6 +52,8 @@ target_link_libraries(${PROJECT_NAME}_voxel_grid_node_core
   ${PCL_LIBRARIES}
   ${PROJECT_NAME}_lib
 )
+
+autoware_agnocast_wrapper_setup(${PROJECT_NAME}_voxel_grid_node_core)
 
 rclcpp_components_register_node(${PROJECT_NAME}_voxel_grid_node_core
   PLUGIN "autoware::euclidean_cluster::VoxelGridBasedEuclideanClusterNode"

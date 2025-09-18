@@ -3,6 +3,7 @@
   <!-- Current namespace -->
   <arg name="ns" description="current namespace"/>
   <arg name="pipeline_ns" description="pipeline namespace"/>
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
   <arg name="input/pointcloud"/>
   <arg name="fusion_camera_ids" default="[0]" description="camera IDs used for fusion"/>
   <arg name="image_topic_name" default="image_raw" description="topic name of camera image"/>
@@ -25,6 +26,7 @@
       <include file="$(find-pkg-share autoware_shape_estimation)/launch/shape_estimation.launch.xml">
         <arg name="input/objects" value="clusters"/>
         <arg name="output/objects" value="objects_with_feature"/>
+        <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
       </include>
     </group>
 

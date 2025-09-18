@@ -12,6 +12,7 @@ find_package(pcl_conversions REQUIRED)
 
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(autoware_agnocast_wrapper REQUIRED)
 
 find_package(CUDA)
 find_package(CUDNN)
@@ -96,6 +97,8 @@ endif()
 target_compile_definitions(${PROJECT_NAME} PRIVATE
   TENSORRT_VERSION_MAJOR=${TENSORRT_VERSION_MAJOR}
 )
+
+autoware_agnocast_wrapper_setup(${PROJECT_NAME})
 
 rclcpp_components_register_node(${PROJECT_NAME}
   PLUGIN "autoware::shape_estimation::ShapeEstimationNode"

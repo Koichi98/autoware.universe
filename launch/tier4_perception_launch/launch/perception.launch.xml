@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <launch>
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <!-- Parameter files -->
   <arg name="object_recognition_detection_euclidean_cluster_param_path"/>
   <arg name="object_recognition_detection_outlier_param_path"/>
@@ -250,6 +253,7 @@
       <group>
         <push-ros-namespace namespace="detection"/>
         <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detection.launch.xml">
+          <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
           <arg name="mode" value="$(var mode)"/>
           <arg name="lidar_detection_model_type" value="$(var lidar_detection_model_type)"/>
           <arg name="lidar_detection_model_name" value="$(var lidar_detection_model_name)"/>

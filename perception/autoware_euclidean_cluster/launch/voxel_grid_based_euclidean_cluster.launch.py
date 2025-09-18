@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 import launch
 from launch.actions import DeclareLaunchArgument
 from launch.actions import OpaqueFunction
@@ -70,11 +72,15 @@ def launch_setup(context, *args, **kwargs):
         parameters=[load_composable_node_param("voxel_grid_based_euclidean_param_path")],
     )
 
+    use_agnocast = os.getenv("ENABLE_AGNOCAST") == "1"
+    container_package = "agnocastlib" if use_agnocast else "rclcpp_components"
+    container_executable = "agnocast_component_container" if use_agnocast else "component_container"
+
     container = ComposableNodeContainer(
         name="euclidean_cluster_container",
-        package="rclcpp_components",
+        package=container_package,
         namespace=ns,
-        executable="component_container",
+        executable=container_executable,
         composable_node_descriptions=[],
         output="screen",
         condition=UnlessCondition(LaunchConfiguration("use_pointcloud_container")),

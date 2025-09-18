@@ -3,6 +3,9 @@
   <!-- Current namespace -->
   <let name="ns" value="/perception/object_recognition/detection"/>
 
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" default="/opt/ros/humble/lib/libagnocast_heaphook.so" description="path to agnocast heaphook library"/>
+
   <!-- Pipeline junctions -->
   <arg name="mode">
     <choice value="camera"/>
@@ -186,6 +189,7 @@
     <!-- Camera-Lidar detectors -->
     <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/camera_lidar_detector.launch.xml">
       <arg name="ns" value="$(var ns)"/>
+      <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
       <arg name="number_of_cameras" value="$(var number_of_cameras)"/>
       <arg name="input/camera0/image" value="$(var input/camera0/image)"/>
       <arg name="input/camera0/info" value="$(var input/camera0/info)"/>
@@ -237,6 +241,7 @@
     <!-- Irregular object detector -->
     <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/camera_lidar_irregular_object_detector.launch.xml">
       <arg name="ns" value="$(var ns)"/>
+      <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
       <arg name="pipeline_ns" value="$(var irregular_object_detector_ns)"/>
       <arg name="fusion_camera_ids" value="$(var irregular_object_detector_fusion_camera_ids)"/>
       <arg name="image_topic_name" value="$(var image_topic_name)"/>
@@ -248,6 +253,7 @@
   <group if="$(var switch/detector/lidar_dnn)">
     <!-- Lidar dnn-based detectors-->
     <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/lidar_dnn_detector.launch.xml">
+      <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
       <arg name="input/pointcloud" value="$(var input/pointcloud)"/>
       <arg name="output/objects" value="$(var lidar_ml_detector/output/objects)"/>
       <arg name="node/pointcloud_container" value="$(var node/pointcloud_container)"/>
@@ -269,6 +275,7 @@
       <arg name="output/cluster_objects" value="$(var lidar_rule_detector/output/cluster_objects)"/>
       <arg name="output/objects" value="$(var lidar_rule_detector/output/objects)"/>
       <arg name="use_low_height_cropbox" value="$(var use_low_height_cropbox)"/>
+      <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
     </include>
   </group>
   <group if="$(var switch/detector/radar)">

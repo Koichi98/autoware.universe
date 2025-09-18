@@ -3,6 +3,9 @@
   <arg name="output/objects" default="shape_estimated_objects"/>
   <arg name="node_name" default="shape_estimation"/>
 
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <arg name="data_path" default="$(env HOME)/autoware_data" description="packages data and artifacts directory path"/>
   <arg name="model_path" default="$(var data_path)/shape_estimation/pointnet.onnx"/>
   <!-- Parameter -->
@@ -13,5 +16,7 @@
     <remap from="objects" to="$(var output/objects)"/>
     <param name="model_path" value="$(var model_path)"/>
     <param from="$(var config_file)" allow_substs="true"/>
+    <env name="LD_PRELOAD" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')"/>
+    <env name="AGNOCAST_MEMPOOL_SIZE" value="8589934592"/>
   </node>
 </launch>

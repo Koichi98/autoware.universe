@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <launch>
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <!-- Lidar parameters -->
   <arg name="lidar_detection_model_type">
     <choice value="bevfusion"/>
@@ -155,6 +158,7 @@
       <include file="$(find-pkg-share autoware_shape_estimation)/launch/shape_estimation.launch.xml">
         <arg name="input/objects" value="labeled_clusters"/>
         <arg name="output/objects" value="objects_with_feature"/>
+        <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
         <arg name="use_vehicle_reference_yaw" value="true"/>
         <arg name="use_vehicle_reference_shape_size" value="false"/>
       </include>

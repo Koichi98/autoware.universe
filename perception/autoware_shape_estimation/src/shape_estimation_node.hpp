@@ -23,6 +23,7 @@
 #include <autoware/tensorrt_common/tensorrt_common.hpp>
 #endif
 
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
 #include <autoware_utils/ros/debug_publisher.hpp>
 #include <autoware_utils/ros/published_time_publisher.hpp>
 #include <autoware_utils/system/stop_watch.hpp>
@@ -43,7 +44,7 @@ class ShapeEstimationNode : public rclcpp::Node
 private:
   // ros
   rclcpp::Publisher<DetectedObjectsWithFeature>::SharedPtr pub_;
-  rclcpp::Subscription<DetectedObjectsWithFeature>::SharedPtr sub_;
+  AUTOWARE_SUBSCRIPTION_PTR(DetectedObjectsWithFeature) sub_;
   std::unique_ptr<autoware_utils::PublishedTimePublisher> published_time_publisher_;
 
   // debug publisher
