@@ -51,8 +51,8 @@ private:
   std::unique_ptr<autoware_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_;
   std::unique_ptr<autoware_utils::DebugPublisher> processing_time_publisher_;
 
-  void callback(const DetectedObjectsWithFeature::ConstSharedPtr input_msg);
-
+  //void callback(const DetectedObjectsWithFeature::ConstSharedPtr input_msg);
+  void callback(AUTOWARE_MESSAGE_SHARED_PTR(DetectedObjectsWithFeature) input_msg);
   std::unique_ptr<ShapeEstimator> estimator_;
   bool use_vehicle_reference_yaw_;
   bool use_vehicle_reference_shape_size_;

@@ -98,7 +98,7 @@ static bool label_is_vehicle(
          Label::TRAILER == label;
 }
 
-void ShapeEstimationNode::callback(const DetectedObjectsWithFeature::ConstSharedPtr input_msg)
+void ShapeEstimationNode::callback(const AUTOWARE_MESSAGE_SHARED_PTR(DetectedObjectsWithFeature) input_msg)
 {
   stop_watch_ptr_->toc("processing_time", true);
   // Guard

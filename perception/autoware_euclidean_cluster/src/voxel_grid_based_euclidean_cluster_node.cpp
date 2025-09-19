@@ -68,15 +68,19 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
       this->get_logger(), *this->get_clock(), 1000, "Empty sensor points!");
   }
   // cluster and build output msg
-  tier4_perception_msgs::msg::DetectedObjectsWithFeature output;
-
-  cluster_->cluster(input_msg, output);
-  cluster_pub_->publish(output);
+  sensor_msgs::msg::PointCloud2 debug;
+  uint32_t sub_count = debug_pub_->get_subscription_count();
+  rclcpp::Time output_header_stamp;
+  auto output = ALLOCATE_OUTPUT_MESSAGE_SHARED(cluster_pub_);
+  cluster_->cluster(input_msg, *output);
+  if (sub_count >= 1) {
+    convertObjectMsg2SensorMsg(*output, debug);
+  }
+  output_header_stamp = output->header.stamp;
+  cluster_pub_->publish(std::move(output));
 
   // build debug msg
-  if (debug_pub_->get_subscription_count() >= 1) {
-    sensor_msgs::msg::PointCloud2 debug;
-    convertObjectMsg2SensorMsg(output, debug);
+  if (sub_count >= 1) {
     debug_pub_->publish(debug);
   }
   if (debug_publisher_) {
@@ -84,7 +88,7 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
     const double cyclic_time_ms = stop_watch_ptr_->toc("cyclic_time", true);
     const double pipeline_latency_ms =
       std::chrono::duration<double, std::milli>(
-        std::chrono::nanoseconds((this->get_clock()->now() - output.header.stamp).nanoseconds()))
+        std::chrono::nanoseconds((this->get_clock()->now() - output_header_stamp).nanoseconds()))
         .count();
     debug_publisher_->publish<autoware_internal_debug_msgs::msg::Float64Stamped>(
       "debug/cyclic_time_ms", cyclic_time_ms);
