@@ -14,6 +14,9 @@
   <arg name="objects_filter_method"/>
   <let name="without_dbt_and_filter" value="$(eval &quot;'$(var use_detection_by_tracker)'=='false' and '$(var use_object_filter)'=='false' &quot;)"/>
 
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" default="/opt/ros/humble/lib/libagnocast_heaphook.so" description="path to agnocast heaphook library"/>
+
   <!-- external interfaces -->
   <arg name="number_of_cameras"/>
   <arg name="input/camera0/image"/>
@@ -153,6 +156,7 @@
       <arg name="objects_filter_method" value="$(var objects_filter_method)"/>
       <arg name="input/objects" value="$(var filter/input/objects)"/>
       <arg name="output/objects" value="$(var filter/output/objects)"/>
+      <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
     </include>
   </group>
 </launch>

@@ -3,8 +3,13 @@
   <arg name="output"/>
   <arg name="node_name" default="detected_object_feature_remover"/>
 
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <node pkg="autoware_detected_object_feature_remover" exec="detected_object_feature_remover_node" name="$(var node_name)" output="screen">
     <remap from="~/input" to="$(var input)"/>
     <remap from="~/output" to="$(var output)"/>
+    <env name="LD_PRELOAD" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')"/>
+    <env name="AGNOCAST_MEMPOOL_SIZE" value="8589934592"/>
   </node>
 </launch>

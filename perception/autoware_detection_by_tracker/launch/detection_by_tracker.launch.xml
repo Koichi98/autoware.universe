@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
+
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <arg name="input/tracked_objects" default="/perception/object_recognition/tracking/objects"/>
   <arg name="input/initial_objects" default="/perception/object_recognition/detection/clustering/objects_with_feature"/>
   <arg name="output" default="objects"/>
@@ -9,5 +13,7 @@
     <remap from="~/input/initial_objects" to="$(var input/initial_objects)"/>
     <remap from="~/output" to="$(var output)"/>
     <param from="$(var detection_by_tracker_param_path)"/>
+    <env name="LD_PRELOAD" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')"/>
+    <env name="AGNOCAST_MEMPOOL_SIZE" value="8589934592"/>
   </node>
 </launch>

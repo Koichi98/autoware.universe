@@ -47,6 +47,7 @@
       <include file="$(find-pkg-share autoware_detected_object_feature_remover)/launch/detected_object_feature_remover.launch.xml">
         <arg name="input" value="$(var detected_object_feature_remover/input)"/>
         <arg name="output" value="$(var detected_object_feature_remover/output)"/>
+        <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
       </include>
     </group>
   </group>

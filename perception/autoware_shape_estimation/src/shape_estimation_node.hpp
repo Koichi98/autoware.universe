@@ -43,7 +43,7 @@ class ShapeEstimationNode : public rclcpp::Node
 {
 private:
   // ros
-  rclcpp::Publisher<DetectedObjectsWithFeature>::SharedPtr pub_;
+  AUTOWARE_PUBLISHER_PTR(DetectedObjectsWithFeature) pub_;
   AUTOWARE_SUBSCRIPTION_PTR(DetectedObjectsWithFeature) sub_;
   std::unique_ptr<autoware_utils::PublishedTimePublisher> published_time_publisher_;
 

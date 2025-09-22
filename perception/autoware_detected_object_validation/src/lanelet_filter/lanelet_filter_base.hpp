@@ -15,6 +15,7 @@
 #ifndef LANELET_FILTER__LANELET_FILTER_BASE_HPP_
 #define LANELET_FILTER__LANELET_FILTER_BASE_HPP_
 
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
 #include "autoware/detected_object_validation/utils/utils.hpp"
 #include "autoware_lanelet2_extension/utility/utilities.hpp"
 #include "autoware_utils/geometry/geometry.hpp"
@@ -75,7 +76,7 @@ private:
   void publishDebugMarkers(
     rclcpp::Time stamp, const LinearRing2d & hull, const std::vector<BoxAndLanelet> & lanelets);
 
-  typename rclcpp::Publisher<ObjsMsgType>::SharedPtr object_pub_;
+  AUTOWARE_PUBLISHER_PTR(ObjsMsgType) object_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;
   rclcpp::Subscription<autoware_map_msgs::msg::LaneletMapBin>::SharedPtr map_sub_;
   typename rclcpp::Subscription<ObjsMsgType>::SharedPtr object_sub_;

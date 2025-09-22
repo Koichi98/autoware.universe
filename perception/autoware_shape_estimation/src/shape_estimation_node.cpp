@@ -46,7 +46,7 @@ ShapeEstimationNode::ShapeEstimationNode(const rclcpp::NodeOptions & node_option
     DetectedObjectsWithFeature, "input", rclcpp::QoS{1},
     std::bind(&ShapeEstimationNode::callback, this, _1), sub_options);
 
-  pub_ = create_publisher<DetectedObjectsWithFeature>("objects", rclcpp::QoS{1});
+  pub_ = AUTOWARE_CREATE_PUBLISHER2(DetectedObjectsWithFeature, "objects", rclcpp::QoS{1});
   bool use_corrector = declare_parameter<bool>("use_corrector");
   bool use_filter = declare_parameter<bool>("use_filter");
   use_vehicle_reference_yaw_ = declare_parameter<bool>("use_vehicle_reference_yaw");
@@ -106,12 +106,13 @@ void ShapeEstimationNode::callback(const AUTOWARE_MESSAGE_SHARED_PTR(DetectedObj
     return;
   }
 
-  // Create output msg
-  DetectedObjectsWithFeature output_msg;
-  output_msg.header = input_msg->header;
-
   // Create ml model input batch
   DetectedObjectsWithFeature input_trt_batch;
+
+  // Create output msg
+  std_msgs::msg::Header output_msg_header = input_msg->header;
+  auto output_msg = ALLOCATE_OUTPUT_MESSAGE_SHARED(pub_);
+  output_msg->header = output_msg_header;
 
   // Estimate shape for each object and pack msg
   for (const auto & feature_object : input_msg->feature_objects) {
@@ -157,13 +158,14 @@ void ShapeEstimationNode::callback(const AUTOWARE_MESSAGE_SHARED_PTR(DetectedObj
     if (!fix_filtered_objects_label_to_unknown_ && !estimated_success) {
       continue;
     }
-    output_msg.feature_objects.push_back(feature_object);
+
+    output_msg->feature_objects.push_back(feature_object);
     if (!estimated_success) {
-      output_msg.feature_objects.back().object.classification.front().label = Label::UNKNOWN;
+      output_msg->feature_objects.back().object.classification.front().label = Label::UNKNOWN;
     }
 
-    output_msg.feature_objects.back().object.shape = shape;
-    output_msg.feature_objects.back().object.kinematics.pose_with_covariance.pose = pose;
+    output_msg->feature_objects.back().object.shape = shape;
+    output_msg->feature_objects.back().object.kinematics.pose_with_covariance.pose = pose;
   }
 
 #ifdef USE_CUDA
@@ -172,13 +174,13 @@ void ShapeEstimationNode::callback(const AUTOWARE_MESSAGE_SHARED_PTR(DetectedObj
     tensorrt_shape_estimator_->inference(input_trt_batch, output_model);
   }
   for (auto & feature_object : output_model.feature_objects) {
-    output_msg.feature_objects.push_back(feature_object);
+    output_msg->feature_objects.push_back(feature_object);
   }
 #endif
 
   // Publish
-  pub_->publish(output_msg);
-  published_time_publisher_->publish_if_subscribed(pub_, output_msg.header.stamp);
+  pub_->publish(std::move(output_msg));
+  published_time_publisher_->publish_if_subscribed(pub_, output_msg_header.stamp);
   processing_time_publisher_->publish<autoware_internal_debug_msgs::msg::Float64Stamped>(
     "debug/cyclic_time_ms", stop_watch_ptr_->toc("cyclic_time", true));
   processing_time_publisher_->publish<autoware_internal_debug_msgs::msg::Float64Stamped>(

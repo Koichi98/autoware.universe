@@ -65,7 +65,7 @@ MultiObjectTracker::MultiObjectTracker(const rclcpp::NodeOptions & node_options)
   bool use_time_keeper = declare_parameter<bool>("publish_processing_time_detail");
 
   // ROS interface - Publisher
-  tracked_objects_pub_ = create_publisher<autoware_perception_msgs::msg::TrackedObjects>(
+  tracked_objects_pub_ = AUTOWARE_CREATE_PUBLISHER2(autoware_perception_msgs::msg::TrackedObjects,
     "output/objects", rclcpp::QoS{1});
 
   // Odometry manager
@@ -448,31 +448,33 @@ void MultiObjectTracker::publish(const rclcpp::Time & time) const
     return;
   }
   // Create output msg
-  autoware_perception_msgs::msg::TrackedObjects output_msg;
-  output_msg.header.frame_id = world_frame_id_;
+  auto output_msg = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(tracked_objects_pub_);
+  output_msg->header.frame_id = world_frame_id_;
   const rclcpp::Time object_time = enable_delay_compensation_ ? this->now() : time;
-  processor_->getTrackedObjects(object_time, output_msg);
+  processor_->getTrackedObjects(object_time, *output_msg);
+  auto output_msg_header_stamp = output_msg->header.stamp;
+  auto output_msg_objects_size = output_msg->objects.size();
 
   // Publish
   {
     std::unique_ptr<ScopedTimeTrack> st_pub_ptr;
     if (time_keeper_)
       st_pub_ptr = std::make_unique<ScopedTimeTrack>("tracker_publish", *time_keeper_);
-    tracked_objects_pub_->publish(output_msg);
+    tracked_objects_pub_->publish(std::move(output_msg));
   }
 
   {
     std::unique_ptr<ScopedTimeTrack> st_debug_ptr;
     if (time_keeper_)
       st_debug_ptr = std::make_unique<ScopedTimeTrack>("debug_publish", *time_keeper_);
-    published_time_publisher_->publish_if_subscribed(tracked_objects_pub_, output_msg.header.stamp);
+    published_time_publisher_->publish_if_subscribed(tracked_objects_pub_, output_msg_header_stamp);
 
     // Publish debugger information if enabled
     debugger_->endPublishTime(this->now(), time);
 
     // Update the diagnostic values
     const double min_extrapolation_time = (time - last_updated_time_).seconds();
-    debugger_->updateDiagnosticValues(min_extrapolation_time, output_msg.objects.size());
+    debugger_->updateDiagnosticValues(min_extrapolation_time, output_msg_objects_size);
 
     if (debugger_->shouldPublishTentativeObjects()) {
       autoware_perception_msgs::msg::TrackedObjects tentative_output_msg;

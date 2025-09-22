@@ -105,6 +105,7 @@
             <arg name="data_association_matrix_path" value="$(var object_recognition_tracking_multi_object_tracker_data_association_matrix_param_path)"/>
             <arg name="input_channels_path" value="$(var object_recognition_tracking_multi_object_tracker_input_channels_param_path)"/>
             <arg name="tracker_setting_path" value="$(var object_recognition_tracking_multi_object_tracker_node_param_path)"/>
+            <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
           </include>
         </group>
         <!-- prediction module -->

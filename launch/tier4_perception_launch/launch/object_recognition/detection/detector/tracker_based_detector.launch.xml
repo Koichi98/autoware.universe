@@ -5,6 +5,9 @@
   <arg name="input/tracked_objects"/>
   <arg name="output/objects"/>
 
+  <!-- Agnocast -->
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <!-- DetectionByTracker -->
   <group>
     <push-ros-namespace namespace="detection_by_tracker"/>
@@ -13,6 +16,7 @@
       <arg name="input/initial_objects" value="$(var input/clusters)"/>
       <arg name="input/tracked_objects" value="$(var input/tracked_objects)"/>
       <arg name="output" value="$(var output/objects)"/>
+      <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
     </include>
   </group>
 </launch>

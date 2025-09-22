@@ -103,7 +103,7 @@ ObjectLaneletFilterBase<ObjsMsgType, ObjMsgType>::ObjectLaneletFilterBase(
     std::bind(&ObjectLaneletFilterBase::mapCallback, this, _1));
   object_sub_ = this->create_subscription<ObjsMsgType>(
     "input/object", rclcpp::QoS{1}, std::bind(&ObjectLaneletFilterBase::objectCallback, this, _1));
-  object_pub_ = this->create_publisher<ObjsMsgType>("output/object", rclcpp::QoS{1});
+  object_pub_ = AUTOWARE_CREATE_PUBLISHER2(ObjsMsgType, "output/object", rclcpp::QoS{1});
 
   debug_publisher_ =
     std::make_unique<autoware_utils::DebugPublisher>(this, "object_lanelet_filter");
@@ -334,9 +334,6 @@ void ObjectLaneletFilterBase<ObjsMsgType, ObjMsgType>::objectCallback(
   // Guard
   if (object_pub_->get_subscription_count() < 1) return;
 
-  ObjsMsgType output_object_msg;
-  output_object_msg.header = input_msg->header;
-
   if (!lanelet_map_ptr_) {
     RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 3000, "No vector map received.");
     return;
@@ -348,6 +345,10 @@ void ObjectLaneletFilterBase<ObjsMsgType, ObjMsgType>::objectCallback(
     RCLCPP_ERROR(get_logger(), "Failed transform to %s.", lanelet_frame_id_.c_str());
     return;
   }
+
+  auto output_object_msg_header = input_msg->header;
+  auto output_object_msg = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(object_pub_);
+  output_object_msg->header = output_object_msg_header;
 
   if (!transformed_objects.objects.empty()) {
     // calculate convex hull
@@ -369,18 +370,18 @@ void ObjectLaneletFilterBase<ObjsMsgType, ObjMsgType>::objectCallback(
     for (size_t index = 0; index < transformed_objects.objects.size(); ++index) {
       const auto & transformed_object = transformed_objects.objects.at(index);
       const auto & input_object = input_msg->objects.at(index);
-      filterObject(transformed_object, input_object, local_rtree, output_object_msg);
+      filterObject(transformed_object, input_object, local_rtree, *output_object_msg);
     }
   }
 
-  object_pub_->publish(output_object_msg);
-  published_time_publisher_->publish_if_subscribed(object_pub_, output_object_msg.header.stamp);
+  object_pub_->publish(std::move(output_object_msg));
+  published_time_publisher_->publish_if_subscribed(object_pub_, output_object_msg_header.stamp);
 
   // Publish debug info
   const double pipeline_latency =
     std::chrono::duration<double, std::milli>(
       std::chrono::nanoseconds(
-        (this->get_clock()->now() - output_object_msg.header.stamp).nanoseconds()))
+        (this->get_clock()->now() - output_object_msg_header.stamp).nanoseconds()))
       .count();
   debug_publisher_->publish<autoware_internal_debug_msgs::msg::Float64Stamped>(
     "debug/pipeline_latency_ms", pipeline_latency);

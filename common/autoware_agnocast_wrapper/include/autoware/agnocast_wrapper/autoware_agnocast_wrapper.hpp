@@ -14,6 +14,7 @@
 
 #pragma once
 
+#define USE_AGNOCAST_ENABLED
 #ifdef USE_AGNOCAST_ENABLED
 
 #include "autoware_utils/ros/polling_subscriber.hpp"
@@ -41,6 +42,8 @@
 
 #define AUTOWARE_CREATE_SUBSCRIPTION(message_type, topic, qos, callback, options) \
   autoware::agnocast_wrapper::create_subscription<message_type>(this, topic, qos, callback, options)
+#define AUTOWARE_CREATE_SUBSCRIPTION_WITH_NODE(message_type, node, topic, qos, callback, options) \
+  autoware::agnocast_wrapper::create_subscription<message_type>(node, topic, qos, callback, options)
 #define AUTOWARE_CREATE_PUBLISHER2(message_type, arg1, arg2) \
   autoware::agnocast_wrapper::create_publisher<message_type>(this, arg1, arg2)
 #define AUTOWARE_CREATE_PUBLISHER3(message_type, arg1, arg2, arg3) \
@@ -370,6 +373,9 @@ public:
   virtual void publish(AUTOWARE_MESSAGE_SHARED_PTR(MessageT) && message) = 0;
 
   virtual uint32_t get_subscription_count() const = 0;
+  virtual uint32_t get_intra_process_subscription_count() const = 0;
+  virtual rmw_gid_t get_gid() const = 0;
+  virtual std::string get_topic_name() const = 0;
 };
 
 template <typename MessageT>
@@ -406,6 +412,12 @@ public:
   }
 
   uint32_t get_subscription_count() const override { return publisher_->get_subscription_count(); }
+
+  uint32_t get_intra_process_subscription_count() const override { return publisher_->get_intra_process_subscription_count(); }
+
+  rmw_gid_t get_gid() const override { return publisher_->get_gid(); }
+
+  std::string get_topic_name() const override { return publisher_->get_topic_name(); }
 };
 
 template <typename MessageT>
@@ -444,6 +456,12 @@ public:
   }
 
   uint32_t get_subscription_count() const override { return publisher_->get_subscription_count(); }
+
+  uint32_t get_intra_process_subscription_count() const override { return publisher_->get_intra_process_subscription_count(); }
+
+  rmw_gid_t get_gid() const override { return publisher_->get_gid(); }
+
+  std::string get_topic_name() const override { return publisher_->get_topic_name(); }
 };
 
 template <typename MessageT>
@@ -517,6 +535,8 @@ typename Publisher<MessageT>::SharedPtr create_publisher(
 
 #define AUTOWARE_CREATE_SUBSCRIPTION(message_type, topic, qos, callback, options) \
   this->create_subscription<message_type>(topic, qos, callback, options)
+#define AUTOWARE_CREATE_SUBSCRIPTION_WITH_NODE(message_type, node, topic, qos, callback, options) \
+  node->create_subscription<message_type>(topic, qos, callback, options)
 #define AUTOWARE_CREATE_PUBLISHER2(message_type, arg1, arg2) \
   this->create_publisher<message_type>(arg1, arg2)
 #define AUTOWARE_CREATE_PUBLISHER3(message_type, arg1, arg2, arg3) \

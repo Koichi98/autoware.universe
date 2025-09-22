@@ -92,15 +92,16 @@ DetectionByTracker::DetectionByTracker(const rclcpp::NodeOptions & node_options)
   tf_listener_(tf_buffer_)
 {
   // Create publishers and subscribers
-  trackers_sub_ = create_subscription<autoware_perception_msgs::msg::TrackedObjects>(
+  AUTOWARE_SUBSCRIPTION_OPTIONS sub_options;
+  trackers_sub_ = AUTOWARE_CREATE_SUBSCRIPTION(autoware_perception_msgs::msg::TrackedObjects,
     "~/input/tracked_objects", rclcpp::QoS{1},
-    std::bind(&TrackerHandler::onTrackedObjects, &tracker_handler_, std::placeholders::_1));
+    std::bind(&TrackerHandler::onTrackedObjects, &tracker_handler_, std::placeholders::_1),sub_options);
   initial_objects_sub_ =
-    create_subscription<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
+    AUTOWARE_CREATE_SUBSCRIPTION(tier4_perception_msgs::msg::DetectedObjectsWithFeature,
       "~/input/initial_objects", rclcpp::QoS{1},
-      std::bind(&DetectionByTracker::onObjects, this, std::placeholders::_1));
+      std::bind(&DetectionByTracker::onObjects, this, std::placeholders::_1), sub_options);
   objects_pub_ =
-    create_publisher<autoware_perception_msgs::msg::DetectedObjects>("~/output", rclcpp::QoS{1});
+    AUTOWARE_CREATE_PUBLISHER2(autoware_perception_msgs::msg::DetectedObjects, "~/output", rclcpp::QoS{1});
 
   // Set parameters
   tracker_ignore_.UNKNOWN = declare_parameter<bool>("tracker_ignore_label.UNKNOWN");
@@ -148,11 +149,9 @@ void DetectionByTracker::setMaxSearchRange()
 }
 
 void DetectionByTracker::onObjects(
-  const tier4_perception_msgs::msg::DetectedObjectsWithFeature::ConstSharedPtr input_msg)
+  const AUTOWARE_MESSAGE_SHARED_PTR(tier4_perception_msgs::msg::DetectedObjectsWithFeature) input_msg)
 {
   debugger_->startMeasureProcessingTime();
-  autoware_perception_msgs::msg::DetectedObjects detected_objects;
-  detected_objects.header = input_msg->header;
 
   // get objects from tracking module
   autoware_perception_msgs::msg::DetectedObjects tracked_objects;
@@ -164,8 +163,11 @@ void DetectionByTracker::onObjects(
       !available_trackers ||
       !autoware::object_recognition_utils::transformObjects(
         objects, input_msg->header.frame_id, tf_buffer_, transformed_objects)) {
-      objects_pub_->publish(detected_objects);
-      published_time_publisher_->publish_if_subscribed(objects_pub_, detected_objects.header.stamp);
+      auto detected_objects_header = input_msg->header;
+      auto detected_objects = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(objects_pub_);
+        detected_objects->header = detected_objects_header;
+      objects_pub_->publish(std::move(detected_objects));
+      published_time_publisher_->publish_if_subscribed(objects_pub_, detected_objects_header.stamp);
       return;
     }
     // to simplify post processes, convert tracked_objects to DetectedObjects message.
@@ -187,16 +189,19 @@ void DetectionByTracker::onObjects(
     no_found_tracked_objects, *input_msg, temp_no_found_tracked_objects, divided_objects);
   debugger_->publishDividedObjects(divided_objects);
 
+  auto detected_objects_header = input_msg->header;
+  auto detected_objects = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(objects_pub_);
+  detected_objects->header = detected_objects_header;
   // merge under/over segmented objects to build output objects
   for (const auto & merged_object : merged_objects.feature_objects) {
-    detected_objects.objects.push_back(merged_object.object);
+    detected_objects->objects.push_back(merged_object.object);
   }
   for (const auto & divided_object : divided_objects.feature_objects) {
-    detected_objects.objects.push_back(divided_object.object);
+    detected_objects->objects.push_back(divided_object.object);
   }
 
-  objects_pub_->publish(detected_objects);
-  published_time_publisher_->publish_if_subscribed(objects_pub_, detected_objects.header.stamp);
+  objects_pub_->publish(std::move(detected_objects));
+  published_time_publisher_->publish_if_subscribed(objects_pub_, detected_objects_header.stamp);
   debugger_->publishProcessingTime();
 }
 

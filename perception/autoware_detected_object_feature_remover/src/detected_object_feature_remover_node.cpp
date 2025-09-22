@@ -22,19 +22,21 @@ DetectedObjectFeatureRemover::DetectedObjectFeatureRemover(const rclcpp::NodeOpt
 : Node("detected_object_feature_remover", node_options)
 {
   using std::placeholders::_1;
-  pub_ = this->create_publisher<DetectedObjects>("~/output", rclcpp::QoS(1));
-  sub_ = this->create_subscription<DetectedObjectsWithFeature>(
-    "~/input", 1, std::bind(&DetectedObjectFeatureRemover::objectCallback, this, _1));
+  pub_ = AUTOWARE_CREATE_PUBLISHER2(DetectedObjects, "~/output", rclcpp::QoS(1));
+  AUTOWARE_SUBSCRIPTION_OPTIONS sub_options;
+  sub_ = AUTOWARE_CREATE_SUBSCRIPTION(DetectedObjectsWithFeature,
+    "~/input", 1, std::bind(&DetectedObjectFeatureRemover::objectCallback, this, _1), sub_options);
   published_time_publisher_ = std::make_unique<autoware_utils::PublishedTimePublisher>(this);
 }
 
 void DetectedObjectFeatureRemover::objectCallback(
-  const DetectedObjectsWithFeature::ConstSharedPtr input)
+  const AUTOWARE_MESSAGE_SHARED_PTR(DetectedObjectsWithFeature) input)
 {
-  DetectedObjects output;
-  convert(*input, output);
-  pub_->publish(output);
-  published_time_publisher_->publish_if_subscribed(pub_, output.header.stamp);
+  auto output = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_);
+  convert(*input, *output);
+  auto output_header_stamp = output->header.stamp;
+  pub_->publish(std::move(output));
+  published_time_publisher_->publish_if_subscribed(pub_, output_header_stamp);
 }
 
 void DetectedObjectFeatureRemover::convert(

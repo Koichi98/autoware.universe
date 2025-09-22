@@ -15,6 +15,7 @@
 #ifndef DETECTION_BY_TRACKER_NODE_HPP_
 #define DETECTION_BY_TRACKER_NODE_HPP_
 
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
 #include "autoware/euclidean_cluster/euclidean_cluster.hpp"
 #include "autoware/euclidean_cluster/utils.hpp"
 #include "autoware/euclidean_cluster/voxel_grid_based_euclidean_cluster.hpp"
@@ -59,10 +60,9 @@ public:
   explicit DetectionByTracker(const rclcpp::NodeOptions & node_options);
 
 private:
-  rclcpp::Publisher<autoware_perception_msgs::msg::DetectedObjects>::SharedPtr objects_pub_;
-  rclcpp::Subscription<autoware_perception_msgs::msg::TrackedObjects>::SharedPtr trackers_sub_;
-  rclcpp::Subscription<tier4_perception_msgs::msg::DetectedObjectsWithFeature>::SharedPtr
-    initial_objects_sub_;
+  AUTOWARE_PUBLISHER_PTR(autoware_perception_msgs::msg::DetectedObjects) objects_pub_;
+  AUTOWARE_SUBSCRIPTION_PTR(autoware_perception_msgs::msg::TrackedObjects) trackers_sub_;
+  AUTOWARE_SUBSCRIPTION_PTR(tier4_perception_msgs::msg::DetectedObjectsWithFeature) initial_objects_sub_;
 
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
@@ -81,7 +81,7 @@ private:
   void setMaxSearchRange();
 
   void onObjects(
-    const tier4_perception_msgs::msg::DetectedObjectsWithFeature::ConstSharedPtr input_msg);
+    const AUTOWARE_MESSAGE_SHARED_PTR(tier4_perception_msgs::msg::DetectedObjectsWithFeature) input_msg);
 
   void divideUnderSegmentedObjects(
     const autoware_perception_msgs::msg::DetectedObjects & tracked_objects,
