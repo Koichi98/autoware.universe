@@ -477,9 +477,10 @@ MapBasedPredictionNode::MapBasedPredictionNode(const rclcpp::NodeOptions & node_
   path_generator_->setAccelerationHalfLife(acceleration_exponential_half_life_);
 
   // subscribers
-  sub_objects_ = this->create_subscription<TrackedObjects>(
+  AUTOWARE_SUBSCRIPTION_OPTIONS sub_options;
+  sub_objects_ = AUTOWARE_CREATE_SUBSCRIPTION(TrackedObjects,
     "~/input/objects", 1,
-    std::bind(&MapBasedPredictionNode::objectsCallback, this, std::placeholders::_1));
+    std::bind(&MapBasedPredictionNode::objectsCallback, this, std::placeholders::_1), sub_options);
   sub_map_ = this->create_subscription<LaneletMapBin>(
     "/vector_map", rclcpp::QoS{1}.transient_local(),
     std::bind(&MapBasedPredictionNode::mapCallback, this, std::placeholders::_1));
@@ -620,7 +621,7 @@ void MapBasedPredictionNode::trafficSignalsCallback(
   predictor_vru_->setTrafficSignal(*msg);
 }
 
-void MapBasedPredictionNode::objectsCallback(const TrackedObjects::ConstSharedPtr in_objects)
+void MapBasedPredictionNode::objectsCallback(const AUTOWARE_MESSAGE_SHARED_PTR(TrackedObjects) in_objects)
 {
   std::unique_ptr<ScopedTimeTrack> st_ptr;
   if (time_keeper_) st_ptr = std::make_unique<ScopedTimeTrack>(__func__, *time_keeper_);

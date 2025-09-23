@@ -19,6 +19,7 @@
 #include "map_based_prediction/path_generator.hpp"
 #include "map_based_prediction/predictor_vru.hpp"
 
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
 #include <autoware_utils/geometry/geometry.hpp>
 #include <autoware_utils/ros/debug_publisher.hpp>
 #include <autoware_utils/ros/diagnostics_interface.hpp>
@@ -85,7 +86,7 @@ private:
   // ROS Publisher and Subscriber
   rclcpp::Publisher<PredictedObjects>::SharedPtr pub_objects_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_debug_markers_;
-  rclcpp::Subscription<TrackedObjects>::SharedPtr sub_objects_;
+  AUTOWARE_SUBSCRIPTION_PTR(TrackedObjects) sub_objects_;
   rclcpp::Subscription<LaneletMapBin>::SharedPtr sub_map_;
   autoware_utils::InterProcessPollingSubscriber<TrafficLightGroupArray> sub_traffic_signals_{
     this, "/traffic_signals"};
@@ -168,7 +169,7 @@ private:
   // Node callbacks
   void mapCallback(const LaneletMapBin::ConstSharedPtr msg);
   void trafficSignalsCallback(const TrafficLightGroupArray::ConstSharedPtr msg);
-  void objectsCallback(const TrackedObjects::ConstSharedPtr in_objects);
+  void objectsCallback(const AUTOWARE_MESSAGE_SHARED_PTR(TrackedObjects) in_objects);
 
   // Diagnostics proccess
   void updateDiagnostics(const rclcpp::Time & timestamp, double processing_time_ms);
