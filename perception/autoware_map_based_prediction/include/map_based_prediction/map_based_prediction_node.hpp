@@ -84,7 +84,7 @@ public:
 
 private:
   // ROS Publisher and Subscriber
-  rclcpp::Publisher<PredictedObjects>::SharedPtr pub_objects_;
+  AUTOWARE_PUBLISHER_PTR(PredictedObjects) pub_objects_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_debug_markers_;
   AUTOWARE_SUBSCRIPTION_PTR(TrackedObjects) sub_objects_;
   rclcpp::Subscription<LaneletMapBin>::SharedPtr sub_map_;
@@ -245,7 +245,7 @@ private:
 
   //// Node functions
   void publish(
-    const PredictedObjects & output,
+    AUTOWARE_MESSAGE_UNIQUE_PTR(PredictedObjects) output,
     const visualization_msgs::msg::MarkerArray & debug_markers) const;
 
   // NOTE: This function is copied from the motion_velocity_smoother package.

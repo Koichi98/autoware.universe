@@ -486,7 +486,7 @@ MapBasedPredictionNode::MapBasedPredictionNode(const rclcpp::NodeOptions & node_
     std::bind(&MapBasedPredictionNode::mapCallback, this, std::placeholders::_1));
 
   // publishers
-  pub_objects_ = this->create_publisher<PredictedObjects>("~/output/objects", rclcpp::QoS{1});
+  pub_objects_ = AUTOWARE_CREATE_PUBLISHER2(PredictedObjects, "~/output/objects", rclcpp::QoS{1});
 
   // stopwatch
   stop_watch_ptr_ = std::make_unique<autoware_utils::StopWatch<std::chrono::milliseconds>>();
@@ -662,16 +662,17 @@ void MapBasedPredictionNode::objectsCallback(const AUTOWARE_MESSAGE_SHARED_PTR(T
   // crosswalk users
   predictor_vru_->removeOldKnownMatches(objects_detected_time, object_buffer_time_length_);
 
-  // result output
-  PredictedObjects output;
-  output.header = in_objects->header;
-  output.header.frame_id = "map";
-
   // result debug
   visualization_msgs::msg::MarkerArray debug_markers;
 
   // get current crosswalk users for later prediction
   predictor_vru_->loadCurrentCrosswalkUsers(*in_objects);
+
+  // result output
+  auto output_header = in_objects->header;
+  auto output = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_objects_);
+  output->header = output_header;
+  output->header.frame_id = "map";
 
   // for each object
   for (const auto & object : in_objects->objects) {
@@ -697,8 +698,8 @@ void MapBasedPredictionNode::objectsCallback(const AUTOWARE_MESSAGE_SHARED_PTR(T
       case ObjectClassification::BICYCLE: {
         // Run pedestrian/bicycle prediction
         const auto predicted_vru =
-          getPredictionForNonVehicleObject(output.header, transformed_object);
-        output.objects.emplace_back(predicted_vru);
+          getPredictionForNonVehicleObject(output->header, transformed_object);
+        output->objects.emplace_back(predicted_vru);
         break;
       }
       case ObjectClassification::CAR:
@@ -707,9 +708,9 @@ void MapBasedPredictionNode::objectsCallback(const AUTOWARE_MESSAGE_SHARED_PTR(T
       case ObjectClassification::MOTORCYCLE:
       case ObjectClassification::TRUCK: {
         const auto predicted_object_opt = getPredictionForVehicleObject(
-          output.header, transformed_object, objects_detected_time, debug_markers);
+          output->header, transformed_object, objects_detected_time, debug_markers);
         if (predicted_object_opt) {
-          output.objects.push_back(predicted_object_opt.value());
+          output->objects.push_back(predicted_object_opt.value());
         }
         break;
       }
@@ -720,7 +721,7 @@ void MapBasedPredictionNode::objectsCallback(const AUTOWARE_MESSAGE_SHARED_PTR(T
         predicted_path.confidence = 1.0;
 
         predicted_unknown_object.kinematics.predicted_paths.push_back(predicted_path);
-        output.objects.push_back(predicted_unknown_object);
+        output->objects.push_back(predicted_unknown_object);
         break;
       }
     }
@@ -729,19 +730,19 @@ void MapBasedPredictionNode::objectsCallback(const AUTOWARE_MESSAGE_SHARED_PTR(T
   // process lost crosswalk users to tackle unstable detection
   if (remember_lost_crosswalk_users_) {
     PredictedObjects retrieved_objects = predictor_vru_->retrieveUndetectedObjects();
-    output.objects.insert(
-      output.objects.end(), retrieved_objects.objects.begin(), retrieved_objects.objects.end());
+    output->objects.insert(
+      output->objects.end(), retrieved_objects.objects.begin(), retrieved_objects.objects.end());
   }
 
   // Publish Results
-  publish(output, debug_markers);
+  publish(std::move(output), debug_markers);
 
   // Processing time
   const auto processing_time_ms = stop_watch_ptr_->toc("processing_time", true);
   const auto cyclic_time_ms = stop_watch_ptr_->toc("cyclic_time", true);
 
   // Diagnostics
-  updateDiagnostics(output.header.stamp, processing_time_ms);
+  updateDiagnostics(output_header.stamp, processing_time_ms);
 
   // Publish Processing Time
   if (processing_time_publisher_) {
@@ -753,14 +754,15 @@ void MapBasedPredictionNode::objectsCallback(const AUTOWARE_MESSAGE_SHARED_PTR(T
 }
 
 void MapBasedPredictionNode::publish(
-  const PredictedObjects & output, const visualization_msgs::msg::MarkerArray & debug_markers) const
+  AUTOWARE_MESSAGE_UNIQUE_PTR(PredictedObjects) output, const visualization_msgs::msg::MarkerArray & debug_markers) const
 {
   std::unique_ptr<ScopedTimeTrack> st_ptr;
   if (time_keeper_) st_ptr = std::make_unique<ScopedTimeTrack>(__func__, *time_keeper_);
 
-  pub_objects_->publish(output);
+  auto output_header_stamp = output->header.stamp;
+  pub_objects_->publish(std::move(output));
   if (published_time_publisher_)
-    published_time_publisher_->publish_if_subscribed(pub_objects_, output.header.stamp);
+    published_time_publisher_->publish_if_subscribed(pub_objects_, output_header_stamp);
   if (pub_debug_markers_) pub_debug_markers_->publish(debug_markers);
 }
 
