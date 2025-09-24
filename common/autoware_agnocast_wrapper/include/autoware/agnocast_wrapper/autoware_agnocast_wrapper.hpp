@@ -301,12 +301,14 @@ public:
 
   AUTOWARE_MESSAGE_SHARED_PTR(const MessageT) takeData() override
   {
-    return AUTOWARE_MESSAGE_SHARED_PTR(const MessageT)(std::move(subscriber_->take_data()));
+    auto data = subscriber_->take_data();
+    return AUTOWARE_MESSAGE_SHARED_PTR(const MessageT)(std::move(data));
   }
 
   AUTOWARE_MESSAGE_SHARED_PTR(const MessageT) take_data() override
   {
-    return AUTOWARE_MESSAGE_SHARED_PTR(const MessageT)(std::move(subscriber_->take_data()));
+    auto data = subscriber_->take_data();
+    return AUTOWARE_MESSAGE_SHARED_PTR(const MessageT)(std::move(data));
   }
 };
 

@@ -46,6 +46,9 @@ BehaviorPathPlannerNode::BehaviorPathPlannerNode(const rclcpp::NodeOptions & nod
     planner_data_->init_parameters(*this);
   }
 
+  // subscriber
+  perception_subscriber_ = AUTOWARE_CREATE_POLLING_SUBSCRIBER(PredictedObjects, "~/input/perception", 1);
+
   // publisher
   path_publisher_ = create_publisher<PathWithLaneId>("~/output/path", 1);
   turn_signal_publisher_ =
@@ -201,9 +204,9 @@ void BehaviorPathPlannerNode::takeData()
   }
   // perception
   {
-    const auto msg = perception_subscriber_.take_data();
+    const auto msg = perception_subscriber_->take_data();
     if (msg) {
-      planner_data_->dynamic_object = msg;
+      planner_data_->dynamic_object = std::make_shared<const PredictedObjects>(*msg);
     }
   }
   // occupancy_grid

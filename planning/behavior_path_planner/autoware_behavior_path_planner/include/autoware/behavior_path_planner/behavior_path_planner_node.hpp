@@ -15,6 +15,7 @@
 #ifndef AUTOWARE__BEHAVIOR_PATH_PLANNER__BEHAVIOR_PATH_PLANNER_NODE_HPP_
 #define AUTOWARE__BEHAVIOR_PATH_PLANNER__BEHAVIOR_PATH_PLANNER_NODE_HPP_
 
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
 #include "autoware/behavior_path_planner_common/data_manager.hpp"
 #include "autoware/behavior_path_planner_common/interface/scene_module_interface.hpp"
 #include "autoware_utils/ros/logger_level_configure.hpp"
@@ -99,8 +100,7 @@ private:
     acceleration_subscriber_{this, "~/input/accel"};
   autoware_utils::InterProcessPollingSubscriber<Scenario> scenario_subscriber_{
     this, "~/input/scenario"};
-  autoware_utils::InterProcessPollingSubscriber<PredictedObjects> perception_subscriber_{
-    this, "~/input/perception"};
+  AUTOWARE_POLLING_SUBSCRIBER_PTR(PredictedObjects) perception_subscriber_;
   autoware_utils::InterProcessPollingSubscriber<OccupancyGrid> occupancy_grid_subscriber_{
     this, "~/input/occupancy_grid_map"};
   autoware_utils::InterProcessPollingSubscriber<OccupancyGrid> costmap_subscriber_{
