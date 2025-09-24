@@ -30,38 +30,54 @@
   <arg name="input_channels_path" default="$(find-pkg-share autoware_multi_object_tracker)/config/input_channels.param.yaml"/>
 
   <!-- Agnocast -->
+  <arg name="use_agnocast" default="false" description="enable Agnocast for planning containers"/>
   <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
 
-  <node pkg="autoware_multi_object_tracker" exec="multi_object_tracker_node" name="multi_object_tracker" output="both">
-    <param name="input/detection01/objects" value="$(var input/detection01/objects)"/>
-    <param name="input/detection01/channel" value="$(var input/detection01/channel)"/>
-    <param name="input/detection02/objects" value="$(var input/detection02/objects)"/>
-    <param name="input/detection02/channel" value="$(var input/detection02/channel)"/>
-    <param name="input/detection03/objects" value="$(var input/detection03/objects)"/>
-    <param name="input/detection03/channel" value="$(var input/detection03/channel)"/>
-    <param name="input/detection04/objects" value="$(var input/detection04/objects)"/>
-    <param name="input/detection04/channel" value="$(var input/detection04/channel)"/>
-    <param name="input/detection05/objects" value="$(var input/detection05/objects)"/>
-    <param name="input/detection05/channel" value="$(var input/detection05/channel)"/>
-    <param name="input/detection06/objects" value="$(var input/detection06/objects)"/>
-    <param name="input/detection06/channel" value="$(var input/detection06/channel)"/>
-    <param name="input/detection07/objects" value="$(var input/detection07/objects)"/>
-    <param name="input/detection07/channel" value="$(var input/detection07/channel)"/>
-    <param name="input/detection08/objects" value="$(var input/detection08/objects)"/>
-    <param name="input/detection08/channel" value="$(var input/detection08/channel)"/>
-    <param name="input/detection09/objects" value="$(var input/detection09/objects)"/>
-    <param name="input/detection09/channel" value="$(var input/detection09/channel)"/>
-    <param name="input/detection10/objects" value="$(var input/detection10/objects)"/>
-    <param name="input/detection10/channel" value="$(var input/detection10/channel)"/>
-    <param name="input/detection11/objects" value="$(var input/detection11/objects)"/>
-    <param name="input/detection11/channel" value="$(var input/detection11/channel)"/>
-    <param name="input/detection12/objects" value="$(var input/detection12/objects)"/>
-    <param name="input/detection12/channel" value="$(var input/detection12/channel)"/>
-    <remap from="output/objects" to="$(var output/objects)"/>
-    <param from="$(var tracker_setting_path)"/>
-    <param from="$(var data_association_matrix_path)"/>
-    <param from="$(var input_channels_path)"/>
-    <env name="LD_PRELOAD" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')"/>
-    <env name="AGNOCAST_MEMPOOL_SIZE" value="8589934592"/>
-  </node>
+  <!-- Container configuration based on use_agnocast -->
+  <let name="container_pkg" value="agnocastlib" if="$(var use_agnocast)"/>
+  <let name="container_pkg" value="rclcpp_components" unless="$(var use_agnocast)"/>
+  <let name="container_exec" value="agnocast_component_container" if="$(var use_agnocast)"/>
+  <let name="container_exec" value="component_container" unless="$(var use_agnocast)"/>
+
+  <!-- Environment variable values based on use_agnocast -->
+  <let name="ld_preload_value" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')" if="$(var use_agnocast)"/>
+  <let name="ld_preload_value" value="$(env LD_PRELOAD '')" unless="$(var use_agnocast)"/>
+  <let name="mempool_size" value="8589934592" if="$(var use_agnocast)"/>
+  <let name="mempool_size" value="0" unless="$(var use_agnocast)"/>
+
+  <node_container pkg="$(var container_pkg)" exec="$(var container_exec)" name="multi_object_tracker_container" namespace="" output="both">
+    <env name="LD_PRELOAD" value="$(var ld_preload_value)"/>
+    <env name="AGNOCAST_MEMPOOL_SIZE" value="$(var mempool_size)"/>
+
+    <composable_node pkg="autoware_multi_object_tracker" plugin="autoware::multi_object_tracker::MultiObjectTracker" name="multi_object_tracker" namespace="">
+      <param name="input/detection01/objects" value="$(var input/detection01/objects)"/>
+      <param name="input/detection01/channel" value="$(var input/detection01/channel)"/>
+      <param name="input/detection02/objects" value="$(var input/detection02/objects)"/>
+      <param name="input/detection02/channel" value="$(var input/detection02/channel)"/>
+      <param name="input/detection03/objects" value="$(var input/detection03/objects)"/>
+      <param name="input/detection03/channel" value="$(var input/detection03/channel)"/>
+      <param name="input/detection04/objects" value="$(var input/detection04/objects)"/>
+      <param name="input/detection04/channel" value="$(var input/detection04/channel)"/>
+      <param name="input/detection05/objects" value="$(var input/detection05/objects)"/>
+      <param name="input/detection05/channel" value="$(var input/detection05/channel)"/>
+      <param name="input/detection06/objects" value="$(var input/detection06/objects)"/>
+      <param name="input/detection06/channel" value="$(var input/detection06/channel)"/>
+      <param name="input/detection07/objects" value="$(var input/detection07/objects)"/>
+      <param name="input/detection07/channel" value="$(var input/detection07/channel)"/>
+      <param name="input/detection08/objects" value="$(var input/detection08/objects)"/>
+      <param name="input/detection08/channel" value="$(var input/detection08/channel)"/>
+      <param name="input/detection09/objects" value="$(var input/detection09/objects)"/>
+      <param name="input/detection09/channel" value="$(var input/detection09/channel)"/>
+      <param name="input/detection10/objects" value="$(var input/detection10/objects)"/>
+      <param name="input/detection10/channel" value="$(var input/detection10/channel)"/>
+      <param name="input/detection11/objects" value="$(var input/detection11/objects)"/>
+      <param name="input/detection11/channel" value="$(var input/detection11/channel)"/>
+      <param name="input/detection12/objects" value="$(var input/detection12/objects)"/>
+      <param name="input/detection12/channel" value="$(var input/detection12/channel)"/>
+      <remap from="output/objects" to="$(var output/objects)"/>
+      <param from="$(var tracker_setting_path)"/>
+      <param from="$(var data_association_matrix_path)"/>
+      <param from="$(var input_channels_path)"/>
+    </composable_node>
+  </node_container>
 </launch>

@@ -2,6 +2,10 @@
   <arg name="enable_all_modules_auto_mode"/>
   <arg name="is_simulation"/>
 
+  <!-- Agnocast -->
+  <arg name="use_agnocast" default="false" description="enable Agnocast for planning containers"/>
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <!-- lane_driving scenario -->
   <group>
     <push-ros-namespace namespace="lane_driving"/>
@@ -13,6 +17,8 @@
           <arg name="container_type" value="component_container_mt"/>
           <arg name="enable_all_modules_auto_mode" value="$(var enable_all_modules_auto_mode)"/>
           <arg name="is_simulation" value="$(var is_simulation)"/>
+          <arg name="use_agnocast" value="$(var use_agnocast)"/>
+          <arg name="agnocast_heaphook_path" value="$(var agnocast_heaphook_path)"/>
           <!-- This condition should be true if run_out module is enabled and its detection method is Points -->
           <arg name="launch_compare_map_pipeline" value="false"/>
         </include>

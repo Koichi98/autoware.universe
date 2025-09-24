@@ -206,7 +206,8 @@ void BehaviorPathPlannerNode::takeData()
   {
     const auto msg = perception_subscriber_->take_data();
     if (msg) {
-      planner_data_->dynamic_object = std::make_shared<const PredictedObjects>(*msg);
+      planner_data_->dynamic_object =
+        std::const_pointer_cast<const PredictedObjects>(msg.to_shared_ptr());
     }
   }
   // occupancy_grid

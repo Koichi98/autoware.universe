@@ -38,6 +38,10 @@
 
   <arg name="launch_module_list_end" default="&quot;&quot;]"/>
 
+  <!-- Agnocast -->
+  <arg name="use_agnocast" default="false" description="enable Agnocast for behavior planning container"/>
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <!-- assemble launch config for behavior path planner -->
   <arg name="behavior_path_planner_launch_modules" default="["/>
   <let
@@ -176,7 +180,21 @@
   />
   <let name="behavior_velocity_planner_launch_modules" value="$(eval &quot;'$(var behavior_velocity_planner_launch_modules)' + '$(var launch_module_list_end)'&quot;)"/>
 
-  <node_container pkg="rclcpp_components" exec="$(var container_type)" name="behavior_planning_container" namespace="" args="" output="both">
+  <!-- Container configuration based on use_agnocast -->
+  <let name="container_pkg" value="agnocastlib" if="$(var use_agnocast)"/>
+  <let name="container_pkg" value="rclcpp_components" unless="$(var use_agnocast)"/>
+  <let name="container_exec" value="agnocast_component_container_mt" if="$(var use_agnocast)"/>
+  <let name="container_exec" value="$(var container_type)" unless="$(var use_agnocast)"/>
+
+  <!-- Environment variable values based on use_agnocast -->
+  <let name="ld_preload_value" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')" if="$(var use_agnocast)"/>
+  <let name="ld_preload_value" value="$(env LD_PRELOAD '')" unless="$(var use_agnocast)"/>
+  <let name="mempool_size" value="8589934592" if="$(var use_agnocast)"/>
+  <let name="mempool_size" value="0" unless="$(var use_agnocast)"/>
+
+  <node_container pkg="$(var container_pkg)" exec="$(var container_exec)" name="behavior_planning_container" namespace="" args="" output="both">
+    <env name="LD_PRELOAD" value="$(var ld_preload_value)"/>
+    <env name="AGNOCAST_MEMPOOL_SIZE" value="$(var mempool_size)"/>
     <composable_node pkg="autoware_glog_component" plugin="autoware::glog_component::GlogComponent" name="glog_component" namespace=""/>
     <composable_node pkg="autoware_behavior_velocity_planner" plugin="autoware::behavior_velocity_planner::BehaviorVelocityPlannerNode" name="behavior_velocity_planner" namespace="">
       <remap from="~/input/path_with_lane_id" to="path_with_lane_id"/>

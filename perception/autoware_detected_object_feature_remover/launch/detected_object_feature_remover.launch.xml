@@ -4,12 +4,28 @@
   <arg name="node_name" default="detected_object_feature_remover"/>
 
   <!-- Agnocast -->
+  <arg name="use_agnocast" default="false" description="enable Agnocast for planning containers"/>
   <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
 
-  <node pkg="autoware_detected_object_feature_remover" exec="detected_object_feature_remover_node" name="$(var node_name)" output="screen">
-    <remap from="~/input" to="$(var input)"/>
-    <remap from="~/output" to="$(var output)"/>
-    <env name="LD_PRELOAD" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')"/>
-    <env name="AGNOCAST_MEMPOOL_SIZE" value="8589934592"/>
-  </node>
+  <!-- Container configuration based on use_agnocast -->
+  <let name="container_pkg" value="agnocastlib" if="$(var use_agnocast)"/>
+  <let name="container_pkg" value="rclcpp_components" unless="$(var use_agnocast)"/>
+  <let name="container_exec" value="agnocast_component_container" if="$(var use_agnocast)"/>
+  <let name="container_exec" value="component_container" unless="$(var use_agnocast)"/>
+
+  <!-- Environment variable values based on use_agnocast -->
+  <let name="ld_preload_value" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')" if="$(var use_agnocast)"/>
+  <let name="ld_preload_value" value="$(env LD_PRELOAD '')" unless="$(var use_agnocast)"/>
+  <let name="mempool_size" value="8589934592" if="$(var use_agnocast)"/>
+  <let name="mempool_size" value="0" unless="$(var use_agnocast)"/>
+
+  <node_container pkg="$(var container_pkg)" exec="$(var container_exec)" name="$(var node_name)_container" namespace="" output="screen">
+    <env name="LD_PRELOAD" value="$(var ld_preload_value)"/>
+    <env name="AGNOCAST_MEMPOOL_SIZE" value="$(var mempool_size)"/>
+
+    <composable_node pkg="autoware_detected_object_feature_remover" plugin="autoware::detected_object_feature_remover::DetectedObjectFeatureRemover" name="$(var node_name)" namespace="">
+      <remap from="~/input" to="$(var input)"/>
+      <remap from="~/output" to="$(var output)"/>
+    </composable_node>
+  </node_container>
 </launch>

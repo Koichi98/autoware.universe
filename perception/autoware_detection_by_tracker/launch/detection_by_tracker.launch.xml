@@ -2,18 +2,35 @@
 <launch>
 
   <!-- Agnocast -->
+  <arg name="use_agnocast" default="false" description="enable Agnocast for planning containers"/>
   <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
+  <!-- Container configuration based on use_agnocast -->
+  <let name="container_pkg" value="agnocastlib" if="$(var use_agnocast)"/>
+  <let name="container_pkg" value="rclcpp_components" unless="$(var use_agnocast)"/>
+  <let name="container_exec" value="agnocast_component_container" if="$(var use_agnocast)"/>
+  <let name="container_exec" value="component_container" unless="$(var use_agnocast)"/>
+
+  <!-- Environment variable values based on use_agnocast -->
+  <let name="ld_preload_value" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')" if="$(var use_agnocast)"/>
+  <let name="ld_preload_value" value="$(env LD_PRELOAD '')" unless="$(var use_agnocast)"/>
+  <let name="mempool_size" value="8589934592" if="$(var use_agnocast)"/>
+  <let name="mempool_size" value="0" unless="$(var use_agnocast)"/>
 
   <arg name="input/tracked_objects" default="/perception/object_recognition/tracking/objects"/>
   <arg name="input/initial_objects" default="/perception/object_recognition/detection/clustering/objects_with_feature"/>
   <arg name="output" default="objects"/>
   <arg name="detection_by_tracker_param_path" default="$(find-pkg-share autoware_detection_by_tracker)/config/detection_by_tracker.param.yaml"/>
-  <node pkg="autoware_detection_by_tracker" exec="detection_by_tracker_node" name="detection_by_tracker_node" output="screen">
-    <remap from="~/input/tracked_objects" to="$(var input/tracked_objects)"/>
-    <remap from="~/input/initial_objects" to="$(var input/initial_objects)"/>
-    <remap from="~/output" to="$(var output)"/>
-    <param from="$(var detection_by_tracker_param_path)"/>
-    <env name="LD_PRELOAD" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')"/>
-    <env name="AGNOCAST_MEMPOOL_SIZE" value="8589934592"/>
-  </node>
+
+  <node_container pkg="$(var container_pkg)" exec="$(var container_exec)" name="detection_by_tracker_container" namespace="" output="screen">
+    <env name="LD_PRELOAD" value="$(var ld_preload_value)"/>
+    <env name="AGNOCAST_MEMPOOL_SIZE" value="$(var mempool_size)"/>
+
+    <composable_node pkg="autoware_detection_by_tracker" plugin="autoware::detection_by_tracker::DetectionByTracker" name="detection_by_tracker_node" namespace="">
+      <remap from="~/input/tracked_objects" to="$(var input/tracked_objects)"/>
+      <remap from="~/input/initial_objects" to="$(var input/initial_objects)"/>
+      <remap from="~/output" to="$(var output)"/>
+      <param from="$(var detection_by_tracker_param_path)"/>
+    </composable_node>
+  </node_container>
 </launch>

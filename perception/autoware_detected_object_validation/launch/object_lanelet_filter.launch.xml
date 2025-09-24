@@ -6,14 +6,30 @@
   <arg name="filtering_range_param" default="$(find-pkg-share autoware_detected_object_validation)/config/object_lanelet_filter.param.yaml"/>
 
   <!-- Agnocast -->
+  <arg name="use_agnocast" default="false" description="enable Agnocast for planning containers"/>
   <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
 
-  <node pkg="autoware_detected_object_validation" exec="object_lanelet_filter_node" name="object_lanelet_filter" output="screen">
-    <remap from="input/vector_map" to="$(var vector_map_topic)"/>
-    <remap from="input/object" to="$(var input/object)"/>
-    <remap from="output/object" to="$(var output/object)"/>
-    <param from="$(var filtering_range_param)"/>
-    <env name="LD_PRELOAD" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')"/>
-    <env name="AGNOCAST_MEMPOOL_SIZE" value="8589934592"/>
-  </node>
+  <!-- Container configuration based on use_agnocast -->
+  <let name="container_pkg" value="agnocastlib" if="$(var use_agnocast)"/>
+  <let name="container_pkg" value="rclcpp_components" unless="$(var use_agnocast)"/>
+  <let name="container_exec" value="agnocast_component_container" if="$(var use_agnocast)"/>
+  <let name="container_exec" value="component_container" unless="$(var use_agnocast)"/>
+
+  <!-- Environment variable values based on use_agnocast -->
+  <let name="ld_preload_value" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')" if="$(var use_agnocast)"/>
+  <let name="ld_preload_value" value="$(env LD_PRELOAD '')" unless="$(var use_agnocast)"/>
+  <let name="mempool_size" value="8589934592" if="$(var use_agnocast)"/>
+  <let name="mempool_size" value="0" unless="$(var use_agnocast)"/>
+
+  <node_container pkg="$(var container_pkg)" exec="$(var container_exec)" name="object_lanelet_filter_container" namespace="" output="screen">
+    <env name="LD_PRELOAD" value="$(var ld_preload_value)"/>
+    <env name="AGNOCAST_MEMPOOL_SIZE" value="$(var mempool_size)"/>
+
+    <composable_node pkg="autoware_detected_object_validation" plugin="autoware::detected_object_validation::lanelet_filter::DetectedObjectLaneletFilterNode" name="object_lanelet_filter" namespace="">
+      <remap from="input/vector_map" to="$(var vector_map_topic)"/>
+      <remap from="input/object" to="$(var input/object)"/>
+      <remap from="output/object" to="$(var output/object)"/>
+      <param from="$(var filtering_range_param)"/>
+    </composable_node>
+  </node_container>
 </launch>

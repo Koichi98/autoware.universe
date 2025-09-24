@@ -84,6 +84,7 @@ public:
 
   virtual agnocast::ipc_shared_ptr<MessageT> move_agnocast_ptr() && noexcept = 0;
   virtual std::unique_ptr<MessageT> move_ros2_ptr() && noexcept = 0;
+  virtual std::shared_ptr<MessageT> to_shared_ptr() const = 0;
 };
 
 template <typename MessageT>
@@ -97,6 +98,7 @@ public:
 
   virtual agnocast::ipc_shared_ptr<MessageT> move_agnocast_ptr() && noexcept = 0;
   virtual std::shared_ptr<MessageT> move_ros2_ptr() && noexcept = 0;
+  virtual std::shared_ptr<MessageT> to_shared_ptr() const = 0;
 };
 
 template <typename MessageT, OwnershipType Ownership>
@@ -121,6 +123,12 @@ public:
   // The following member function should never be called at runtime. They are implemented just for
   // inheriting `message_interface`.
   ros2_ptr_t move_ros2_ptr() && noexcept override { return ros2_ptr_t{}; }
+
+  std::shared_ptr<MessageT> to_shared_ptr() const override
+  {
+    // For Agnocast mode, always create a new shared_ptr with copied data
+    return std::make_shared<MessageT>(*ptr_);
+  }
 };
 
 template <typename MessageT, OwnershipType Ownership>
@@ -144,6 +152,17 @@ public:
   agnocast::ipc_shared_ptr<MessageT> move_agnocast_ptr() && noexcept override
   {
     return agnocast::ipc_shared_ptr<MessageT>{};
+  }
+
+  std::shared_ptr<MessageT> to_shared_ptr() const override
+  {
+    if constexpr (Ownership == OwnershipType::Unique) {
+      // For Unique ownership, must create a new shared_ptr (copy required)
+      return std::make_shared<MessageT>(*ptr_);
+    } else {
+      // For Shared ownership, can return the existing shared_ptr (no copy)
+      return ptr_;
+    }
   }
 };
 
@@ -193,6 +212,15 @@ public:
   explicit operator bool() const noexcept { return static_cast<bool>(ptr_->as_ptr()); }
 
   MessageT * get() const noexcept { return ptr_->as_ptr(); }
+
+  // Convert to std::shared_ptr - optimized to avoid unnecessary copies
+  std::shared_ptr<MessageT> to_shared_ptr() const
+  {
+    if (!ptr_) {
+      return nullptr;
+    }
+    return ptr_->to_shared_ptr();
+  }
 };
 
 // Defaults to zero if the environment variable is missing or invalid.
