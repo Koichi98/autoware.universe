@@ -228,9 +228,9 @@ TEST(DrivableAreaExpansionProjection, expand_drivable_area)
   }
   autoware::behavior_path_planner::PlannerData planner_data;
   planner_data.drivable_area_expansion_parameters = params;
-  planner_data.dynamic_object =
-    std::make_shared<autoware::behavior_path_planner::drivable_area_expansion::PredictedObjects>(
-      dynamic_objects);
+  auto obj = std::make_shared<const autoware::behavior_path_planner::drivable_area_expansion::PredictedObjects>(
+    dynamic_objects);
+  planner_data.dynamic_object = AUTOWARE_MESSAGE_SHARED_PTR(autoware::behavior_path_planner::drivable_area_expansion::PredictedObjects const)(std::move(obj));
   planner_data.self_odometry = std::make_shared<nav_msgs::msg::Odometry>();
   planner_data.route_handler =
     std::make_shared<autoware::route_handler::RouteHandler>(route_handler);

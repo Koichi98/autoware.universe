@@ -20,6 +20,7 @@
 #include "autoware/behavior_path_planner_common/utils/drivable_area_expansion/parameters.hpp"
 #include "autoware/motion_utils/trajectory/trajectory.hpp"
 
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
 #include <autoware/route_handler/route_handler.hpp>
 #include <autoware_lanelet2_extension/regulatory_elements/Forward.hpp>
 #include <autoware_lanelet2_extension/utility/utilities.hpp>
@@ -162,7 +163,7 @@ struct PlannerData
 {
   Odometry::ConstSharedPtr self_odometry{};
   AccelWithCovarianceStamped::ConstSharedPtr self_acceleration{};
-  PredictedObjects::ConstSharedPtr dynamic_object{};
+  AUTOWARE_MESSAGE_SHARED_PTR(const PredictedObjects) dynamic_object{};
   OccupancyGrid::ConstSharedPtr occupancy_grid{};
   OccupancyGrid::ConstSharedPtr costmap{};
   LateralOffset::ConstSharedPtr lateral_offset{};

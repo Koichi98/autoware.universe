@@ -2374,7 +2374,7 @@ bool GoalPlannerModule::isCrossingPossible(const PullOverPath & pull_over_path) 
 }
 
 static std::vector<utils::path_safety_checker::ExtendedPredictedObject> filterObjectsByWithinPolicy(
-  const std::shared_ptr<const PredictedObjects> & objects,
+  const AUTOWARE_MESSAGE_SHARED_PTR(PredictedObjects const) & objects,
   const lanelet::ConstLanelets & target_lanes, const ObjectsFilteringParams & params)
 {
   // implanted part of behavior_path_planner::utils::path_safety_checker::filterObjects() and
@@ -2512,7 +2512,7 @@ std::pair<bool, utils::path_safety_checker::CollisionCheckDebugMap> GoalPlannerM
   const double hysteresis_factor =
     prev_data.is_stable_safe ? 1.0 : parameters_.hysteresis_factor_expand_rate;
 
-  const bool current_is_safe = std::invoke([&]() {
+  const bool current_is_safe = std::invoke([&]() -> bool {
     if (parameters_.safety_check_params.method == "RSS") {
       return autoware::behavior_path_planner::utils::path_safety_checker::checkSafetyWithRSS(
         current_pull_over_path, ego_predicted_path, filtered_objects, collision_check,

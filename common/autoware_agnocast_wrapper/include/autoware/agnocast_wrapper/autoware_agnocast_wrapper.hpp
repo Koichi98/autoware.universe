@@ -195,6 +195,9 @@ private:
   }
 
 public:
+  // Default constructor for initialization with empty pointer
+  message_ptr() = default;
+
   explicit message_ptr(agnocast::ipc_shared_ptr<MessageT> && ptr)
   : ptr_(std::make_unique<agnocast_message<MessageT, Ownership>>(std::move(ptr)))
   {
@@ -213,14 +216,6 @@ public:
 
   MessageT * get() const noexcept { return ptr_->as_ptr(); }
 
-  // Convert to std::shared_ptr - optimized to avoid unnecessary copies
-  std::shared_ptr<MessageT> to_shared_ptr() const
-  {
-    if (!ptr_) {
-      return nullptr;
-    }
-    return ptr_->to_shared_ptr();
-  }
 };
 
 // Defaults to zero if the environment variable is missing or invalid.

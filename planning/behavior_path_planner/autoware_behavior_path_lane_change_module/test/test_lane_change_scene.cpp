@@ -74,7 +74,8 @@ public:
 
     YAML::Node yaml_node = YAML::LoadFile(objects_file);
     const auto objects = autoware::test_utils::parse<PredictedObjects>(yaml_node);
-    planner_data_->dynamic_object = std::make_shared<PredictedObjects>(objects);
+    auto shared_obj = std::make_shared<const PredictedObjects>(objects);
+    planner_data_->dynamic_object = AUTOWARE_MESSAGE_SHARED_PTR(PredictedObjects const)(std::move(shared_obj));
   }
 
   void init_module()

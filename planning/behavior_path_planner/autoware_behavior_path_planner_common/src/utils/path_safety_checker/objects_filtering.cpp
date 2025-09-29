@@ -119,7 +119,7 @@ bool isPolygonOverlapLanelet(
 }
 
 PredictedObjects filterObjects(
-  const std::shared_ptr<const PredictedObjects> & objects,
+  const AUTOWARE_MESSAGE_SHARED_PTR(PredictedObjects const) & objects,
   const std::shared_ptr<RouteHandler> & route_handler, const lanelet::ConstLanelets & current_lanes,
   const geometry_msgs::msg::Point & current_pose,
   const std::shared_ptr<ObjectsFilteringParams> & params)

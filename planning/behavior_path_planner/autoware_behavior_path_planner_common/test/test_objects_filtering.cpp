@@ -15,6 +15,7 @@
 #include "autoware/behavior_path_planner_common/utils/path_safety_checker/objects_filtering.hpp"
 #include "autoware/behavior_path_planner_common/utils/path_safety_checker/path_safety_checker_parameters.hpp"
 #include "autoware/behavior_path_planner_common/utils/utils.hpp"
+#include "autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <autoware_test_utils/autoware_test_utils.hpp>
@@ -208,7 +209,8 @@ TEST(BehaviorPathPlanningObjectsFiltering, filterObjects)
   using autoware::behavior_path_planner::utils::path_safety_checker::ObjectsFilteringParams;
   using autoware_utils::create_vector3;
 
-  std::shared_ptr<PredictedObjects> objects = std::make_shared<PredictedObjects>();
+  auto objects_raw = std::make_shared<PredictedObjects>();
+  AUTOWARE_MESSAGE_SHARED_PTR(PredictedObjects const) objects(std::move(objects_raw));
   std::shared_ptr<autoware::route_handler::RouteHandler> route_handler =
     std::make_shared<autoware::route_handler::RouteHandler>();
   std::shared_ptr<ObjectsFilteringParams> params = std::make_shared<ObjectsFilteringParams>();
@@ -237,8 +239,9 @@ TEST(BehaviorPathPlanningObjectsFiltering, filterObjects)
     createPose(370.22, 600.51, 0.0, 0.0, 0.0, 0.0), create_vector3(1.0, 1.0, 0.0));
   other_object.classification.push_back(classification);
 
-  objects->objects.push_back(target_object);
-  objects->objects.push_back(other_object);
+  // Modify the raw shared_ptr before passing
+  objects_raw->objects.push_back(target_object);
+  objects_raw->objects.push_back(other_object);
 
   auto filtered_object = filterObjects(objects, route_handler, current_lanes, current_pose, params);
   EXPECT_FALSE(filtered_object.objects.empty());

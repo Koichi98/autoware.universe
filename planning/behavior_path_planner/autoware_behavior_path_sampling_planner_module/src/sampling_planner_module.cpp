@@ -365,7 +365,7 @@ PathWithLaneId SamplingPlannerModule::convertFrenetPathToPathWithLaneID(
 
 void SamplingPlannerModule::prepareConstraints(
   autoware::sampler_common::Constraints & constraints,
-  const PredictedObjects::ConstSharedPtr & predicted_objects,
+  const AUTOWARE_MESSAGE_SHARED_PTR(PredictedObjects const) & predicted_objects,
   const std::vector<geometry_msgs::msg::Point> & left_bound,
   const std::vector<geometry_msgs::msg::Point> & right_bound) const
 {
