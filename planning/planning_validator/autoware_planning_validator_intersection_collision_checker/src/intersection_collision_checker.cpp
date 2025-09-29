@@ -173,7 +173,9 @@ bool IntersectionCollisionChecker::is_safe(DebugData & debug_data)
   }
 
   PointCloud::Ptr filtered_pointcloud(new PointCloud);
-  filter_pointcloud(context_->data->obstacle_pointcloud, filtered_pointcloud, debug_data);
+  auto pointcloud_ptr = context_->data->obstacle_pointcloud ?
+    std::make_shared<const PointCloud2>(*context_->data->obstacle_pointcloud) : nullptr;
+  filter_pointcloud(pointcloud_ptr, filtered_pointcloud, debug_data);
   if (filtered_pointcloud->empty()) {
     debug_data.text = "no points in the filtered pointcloud";
     return true;

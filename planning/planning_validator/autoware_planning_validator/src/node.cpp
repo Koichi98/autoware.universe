@@ -34,6 +34,8 @@ PlanningValidatorNode::PlanningValidatorNode(const rclcpp::NodeOptions & options
   sub_trajectory_ = create_subscription<Trajectory>(
     "~/input/trajectory", rclcpp::QoS{1},
     std::bind(&PlanningValidatorNode::onTrajectory, this, std::placeholders::_1));
+  sub_pointcloud_ = AUTOWARE_CREATE_POLLING_SUBSCRIBER(
+    PointCloud2, "~/input/pointcloud", autoware_utils::single_depth_sensor_qos());
 
   // publishers
   pub_traj_ = create_publisher<Trajectory>("~/output/trajectory", 1);
@@ -97,7 +99,7 @@ void PlanningValidatorNode::setData(const Trajectory::ConstSharedPtr & traj_msg)
   auto & data = context_->data;
   data->current_kinematics = sub_kinematics_.take_data();
   data->current_acceleration = sub_acceleration_.take_data();
-  data->obstacle_pointcloud = sub_pointcloud_.take_data();
+  data->obstacle_pointcloud = sub_pointcloud_->take_data();
   data->set_current_trajectory(traj_msg);
   data->set_route(sub_route_.take_data());
   data->set_map(sub_lanelet_map_bin_.take_data());

@@ -19,6 +19,7 @@
 #include "autoware/planning_validator/utils.hpp"
 #include "autoware_planning_validator/msg/planning_validator_status.hpp"
 
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
 #include <autoware/motion_utils/trajectory/trajectory.hpp>
 #include <autoware/route_handler/route_handler.hpp>
 #include <autoware_vehicle_info_utils/vehicle_info_utils.hpp>
@@ -92,7 +93,7 @@ struct PlanningValidatorData
 
   Odometry::ConstSharedPtr current_kinematics;
   AccelWithCovarianceStamped::ConstSharedPtr current_acceleration;
-  PointCloud2::ConstSharedPtr obstacle_pointcloud;
+  AUTOWARE_MESSAGE_SHARED_PTR(const PointCloud2) obstacle_pointcloud{nullptr};
 
   std::shared_ptr<RouteHandler> route_handler{std::make_shared<RouteHandler>()};
 
