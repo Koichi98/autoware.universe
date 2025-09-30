@@ -168,6 +168,8 @@ private:
   auto move_ros2_ptr() && noexcept { return std::move(*(std::move(ptr_))).move_ros2_ptr(); }
 
 public:
+  message_ptr() : ptr_(nullptr) {}
+
   explicit message_ptr(agnocast::ipc_shared_ptr<MessageT> && ptr)
   : ptr_(std::make_unique<agnocast_message<MessageT, Ownership>>(std::move(ptr)))
   {

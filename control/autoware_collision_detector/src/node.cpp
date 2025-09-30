@@ -166,6 +166,10 @@ CollisionDetectorNode::CollisionDetectorNode(const rclcpp::NodeOptions & node_op
 
   vehicle_info_ = autoware::vehicle_info_utils::VehicleInfoUtils(*this).getVehicleInfo();
 
+  // Initialize pointcloud subscriber
+  sub_pointcloud_ = AUTOWARE_CREATE_POLLING_SUBSCRIBER(
+    sensor_msgs::msg::PointCloud2, "~/input/pointcloud", autoware_utils::single_depth_sensor_qos());
+
   // Diagnostics Updater
   updater_.setHardwareID("collision_detector");
   updater_.add("collision_detect", this, &CollisionDetectorNode::checkCollision);
@@ -339,7 +343,7 @@ void CollisionDetectorNode::checkCollision(diagnostic_updater::DiagnosticStatusW
     return;
   }
 
-  pointcloud_ptr_ = sub_pointcloud_.take_data();
+  pointcloud_ptr_ = sub_pointcloud_->take_data();
   object_ptr_ = sub_dynamic_objects_.take_data();
   operation_mode_ptr_ = sub_operation_mode_.take_data();
 

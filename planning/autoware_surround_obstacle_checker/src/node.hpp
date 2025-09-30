@@ -18,6 +18,8 @@
 #include "autoware_utils/ros/logger_level_configure.hpp"
 #include "autoware_utils/ros/polling_subscriber.hpp"
 #include "debug_marker.hpp"
+
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
 #include "type_alias.hpp"
 #include "types.hpp"
 
@@ -87,8 +89,7 @@ private:
   // publisher and subscriber
   autoware_utils::InterProcessPollingSubscriber<nav_msgs::msg::Odometry> sub_odometry_{
     this, "~/input/odometry"};
-  autoware_utils::InterProcessPollingSubscriber<sensor_msgs::msg::PointCloud2> sub_pointcloud_{
-    this, "~/input/pointcloud", autoware_utils::single_depth_sensor_qos()};
+  AUTOWARE_POLLING_SUBSCRIBER_PTR(sensor_msgs::msg::PointCloud2) sub_pointcloud_;
   autoware_utils::InterProcessPollingSubscriber<PredictedObjects> sub_dynamic_objects_{
     this, "~/input/objects"};
   rclcpp::Publisher<VelocityLimitClearCommand>::SharedPtr pub_clear_velocity_limit_;
@@ -108,7 +109,7 @@ private:
 
   // data
   nav_msgs::msg::Odometry::ConstSharedPtr odometry_ptr_;
-  sensor_msgs::msg::PointCloud2::ConstSharedPtr pointcloud_ptr_;
+  AUTOWARE_MESSAGE_SHARED_PTR(const sensor_msgs::msg::PointCloud2) pointcloud_ptr_;
   PredictedObjects::ConstSharedPtr object_ptr_;
 
   // State Machine
