@@ -38,11 +38,6 @@
   <arg name="input_vector_map_topic_name" default="/map/vector_map"/>
   <arg name="output_trajectory" default="/planning/trajectory"/>
 
-  <let name="container_pkg" value="agnocastlib" if="$(var use_agnocast)"/>
-  <let name="container_pkg" value="rclcpp_components" unless="$(var use_agnocast)"/>
-  <let name="container_exec" value="agnocast_component_container_mt" if="$(var use_agnocast)"/>
-  <let name="container_exec" value="$(var container_type)" unless="$(var use_agnocast)"/>
-
   <!-- Environment variable values based on use_agnocast -->
   <let name="ld_preload_value" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')" if="$(var use_agnocast)"/>
   <let name="ld_preload_value" value="$(env LD_PRELOAD '')" unless="$(var use_agnocast)"/>
@@ -50,7 +45,7 @@
   <let name="mempool_size" value="0" unless="$(var use_agnocast)"/>
 
   <group>
-    <node_container pkg="$(var container_pkg)" exec="$(var container_exec)" name="behavior_planning_container" namespace="" args="" output="both">
+    <node_container pkg="rclcpp_components" exec="$(var container_type)" name="behavior_planning_container" namespace="" args="" output="both">
       <env name="LD_PRELOAD" value="$(var ld_preload_value)"/>
       <env name="AGNOCAST_MEMPOOL_SIZE" value="$(var mempool_size)"/>
       <composable_node pkg="autoware_glog_component" plugin="autoware::glog_component::GlogComponent" name="glog_component" namespace=""/>
