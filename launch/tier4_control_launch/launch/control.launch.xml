@@ -57,6 +57,10 @@
   <arg name="output_turn_indicators_cmd" default="/control/command/turn_indicators_cmd"/>
   <arg name="output_hazard_lights_cmd" default="/control/command/hazard_lights_cmd"/>
 
+  <!-- Agnocast -->
+  <arg name="use_agnocast" default="false" description="enable Agnocast for planning containers"/>
+  <arg name="agnocast_heaphook_path" description="path to agnocast heaphook library"/>
+
   <group>
     <push-ros-namespace namespace="control"/>
 
