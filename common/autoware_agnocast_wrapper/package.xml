@@ -11,6 +11,7 @@
   <buildtool_depend>autoware_cmake</buildtool_depend>
 
   <build_depend>agnocastlib</build_depend>
+  <build_depend>autoware_utils</build_depend>
   <build_depend>rclcpp</build_depend>
 
   <test_depend>ament_lint_auto</test_depend>

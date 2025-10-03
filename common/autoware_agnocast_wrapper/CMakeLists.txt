@@ -6,6 +6,7 @@ autoware_package()
 
 find_package(rclcpp REQUIRED)
 find_package(agnocastlib REQUIRED)
+find_package(autoware_utils REQUIRED)
 
 include_directories(
   include
@@ -17,6 +18,7 @@ ament_export_include_directories(
 
 ament_export_dependencies(
   agnocastlib
+  autoware_utils
 )
 
 install(
