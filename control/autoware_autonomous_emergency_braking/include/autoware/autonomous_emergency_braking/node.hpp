@@ -333,8 +333,6 @@ public:
 
   // subscriber
   AUTOWARE_POLLING_SUBSCRIBER_PTR(PointCloud2) sub_point_cloud_;
-  autoware_utils::InterProcessPollingSubscriber<PointCloud2> sub_point_cloud_{
-    this, "~/input/pointcloud", autoware_utils::single_depth_sensor_qos()};
   autoware_utils::InterProcessPollingSubscriber<VelocityReport> sub_velocity_{
     this, "~/input/velocity"};
   autoware_utils::InterProcessPollingSubscriber<Imu> sub_imu_{this, "~/input/imu"};

@@ -63,10 +63,8 @@
     if="$(var launch_road_user_stop_module)"
   />
 
-  <let name="ld_preload_value" value="$(var agnocast_heaphook_path):$(env LD_PRELOAD '')" if="$(var use_agnocast)"/>
-  <let name="ld_preload_value" value="$(env LD_PRELOAD '')" unless="$(var use_agnocast)"/>
-  <let name="mempool_size" value="8589934592" if="$(var use_agnocast)"/>
-  <let name="mempool_size" value="0" unless="$(var use_agnocast)"/>
+  <!-- Include Agnocast environment configuration -->
+  <include file="$(find-pkg-share autoware_agnocast_wrapper)/launch/agnocast_env.launch.xml"/>
 
   <let name="motion_velocity_planner_launch_modules" value="$(eval &quot;'$(var motion_velocity_planner_launch_modules)' + '$(var launch_module_list_end)'&quot;)"/>
 
