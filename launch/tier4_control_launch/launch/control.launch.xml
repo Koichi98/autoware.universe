@@ -211,7 +211,6 @@
 
       <node_container pkg="rclcpp_components" exec="$(var container_executable)" name="control_check_container" namespace="">
         <env name="LD_PRELOAD" value="$(var ld_preload_value)"/>
-        <env name="AGNOCAST_MEMPOOL_SIZE" value="$(var mempool_size)"/>
       </node_container>
 
       <!-- lane departure checker -->

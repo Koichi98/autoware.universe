@@ -183,7 +183,6 @@
 
   <node_container pkg="rclcpp_components" exec="$(var container_type)" name="behavior_planning_container" namespace="" args="" output="both">
     <env name="LD_PRELOAD" value="$(var ld_preload_value)"/>
-    <env name="AGNOCAST_MEMPOOL_SIZE" value="$(var mempool_size)"/>
     <composable_node pkg="autoware_glog_component" plugin="autoware::glog_component::GlogComponent" name="glog_component" namespace=""/>
     <composable_node pkg="autoware_behavior_velocity_planner" plugin="autoware::behavior_velocity_planner::BehaviorVelocityPlannerNode" name="behavior_velocity_planner" namespace="">
       <remap from="~/input/path_with_lane_id" to="path_with_lane_id"/>
