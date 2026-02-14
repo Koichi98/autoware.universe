@@ -12,8 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Always enable USE_AGNOCAST_ENABLED when agnocastlib is available.
+# Runtime switching is controlled by ENABLE_AGNOCAST environment variable.
 function(autoware_agnocast_wrapper_setup target)
-  if(DEFINED ENV{ENABLE_AGNOCAST} AND "$ENV{ENABLE_AGNOCAST}" STREQUAL "1")
-    target_compile_definitions(${target} PUBLIC USE_AGNOCAST_ENABLED)
-  endif()
+  target_compile_definitions(${target} PUBLIC USE_AGNOCAST_ENABLED)
 endfunction()
+
+# Set the path to the node main template
+set(autoware_agnocast_wrapper_NODE_TEMPLATE
+  "${autoware_agnocast_wrapper_DIR}/../templates/node_main_switchable.cpp.in")
+
+# Include the register_node macro
+include("${autoware_agnocast_wrapper_DIR}/autoware_agnocast_wrapper_register_node.cmake")

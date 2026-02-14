@@ -1,17 +1,3 @@
-// Copyright 2025 TIER IV, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #pragma once
 
 #include <string>
@@ -247,6 +233,30 @@ public:
         ros2_options);
     }
   }
+
+  template <typename Func>
+  explicit Subscription(
+    agnocast::Node * node, const std::string & topic_name, const rclcpp::QoS & qos,
+    Func && callback, const agnocast::SubscriptionOptions & options)
+  {
+    static_assert(
+      std::is_invocable_v<std::decay_t<Func>, AUTOWARE_MESSAGE_UNIQUE_PTR(MessageT) &&> ||
+        std::is_invocable_v<std::decay_t<Func>, AUTOWARE_MESSAGE_SHARED_PTR(MessageT) &&>,
+      "callback should be invocable with an rvalue reference to either AUTOWARE_MESSAGE_UNIQUE_PTR "
+      "or AUTOWARE_MESSAGE_SHARED_PTR");
+
+    constexpr auto ownership =
+      std::is_invocable_v<std::decay_t<Func>, AUTOWARE_MESSAGE_UNIQUE_PTR(MessageT) &&>
+        ? OwnershipType::Unique
+        : OwnershipType::Shared;
+
+    agnocast_sub_ = node->create_subscription<MessageT>(
+      topic_name, qos,
+      [callback = std::forward<Func>(callback)](agnocast::ipc_shared_ptr<MessageT> && msg) {
+        callback(message_ptr<MessageT, ownership>(std::move(msg)));
+      },
+      options);
+  }
 };
 
 template <typename MessageT, typename Func>
@@ -369,6 +379,8 @@ public:
   virtual void publish(AUTOWARE_MESSAGE_SHARED_PTR(MessageT) && message) = 0;
 
   virtual uint32_t get_subscription_count() const = 0;
+  virtual rmw_gid_t get_gid() const = 0;
+  virtual const char * get_topic_name() const = 0;
 };
 
 template <typename MessageT>
@@ -381,6 +393,13 @@ public:
     rclcpp::Node * node, const std::string & topic_name, const rclcpp::QoS & qos,
     const agnocast::PublisherOptions & options)
   : publisher_(agnocast::create_publisher<MessageT>(node, topic_name, qos, options))
+  {
+  }
+
+  explicit AgnocastPublisher(
+    agnocast::Node * node, const std::string & topic_name, const rclcpp::QoS & qos,
+    const agnocast::PublisherOptions & options)
+  : publisher_(node->create_publisher<MessageT>(topic_name, qos, options))
   {
   }
 
@@ -405,6 +424,8 @@ public:
   }
 
   uint32_t get_subscription_count() const override { return publisher_->get_subscription_count(); }
+  rmw_gid_t get_gid() const override { return publisher_->get_gid(); }
+  const char * get_topic_name() const override { return publisher_->get_topic_name(); }
 };
 
 template <typename MessageT>
@@ -443,6 +464,8 @@ public:
   }
 
   uint32_t get_subscription_count() const override { return publisher_->get_subscription_count(); }
+  rmw_gid_t get_gid() const override { return publisher_->get_gid(); }
+  const char * get_topic_name() const override { return publisher_->get_topic_name(); }
 };
 
 template <typename MessageT>
