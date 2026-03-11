@@ -24,67 +24,73 @@ VoxelGridBasedEuclideanClusterNode::VoxelGridBasedEuclideanClusterNode(
   const rclcpp::NodeOptions & options)
 : Node("voxel_grid_based_euclidean_cluster_node", options)
 {
-  const bool use_height = this->declare_parameter<bool>("use_height");
-  const int min_cluster_size = this->declare_parameter<int>("min_cluster_size");
-  const int max_cluster_size = this->declare_parameter<int>("max_cluster_size");
-  const float tolerance = this->declare_parameter<float>("tolerance");
-  const float voxel_leaf_size = this->declare_parameter<float>("voxel_leaf_size");
-  const int min_points_number_per_voxel =
-    this->declare_parameter<int>("min_points_number_per_voxel");
+  const bool use_height = this->declare_parameter("use_height", false);
+  const int min_cluster_size = this->declare_parameter("min_cluster_size", 1);
+  const int max_cluster_size = this->declare_parameter("max_cluster_size", 500);
+  const float tolerance = this->declare_parameter("tolerance", 1.0);
+  const float voxel_leaf_size = this->declare_parameter("voxel_leaf_size", 0.5);
+  const int min_points_number_per_voxel = this->declare_parameter("min_points_number_per_voxel", 3);
   const int min_voxel_cluster_size_for_filtering =
-    this->declare_parameter<int>("min_voxel_cluster_size_for_filtering");
+    this->declare_parameter("min_voxel_cluster_size_for_filtering", 150);
   const int max_points_per_voxel_in_large_cluster =
-    this->declare_parameter<int>("max_points_per_voxel_in_large_cluster");
+    this->declare_parameter("max_points_per_voxel_in_large_cluster", 10);
   const int max_voxel_cluster_for_output =
-    this->declare_parameter<int>("max_voxel_cluster_for_output");
+    this->declare_parameter("max_voxel_cluster_for_output", 800);
   cluster_ = std::make_shared<VoxelGridBasedEuclideanCluster>(
     use_height, min_cluster_size, max_cluster_size, tolerance, voxel_leaf_size,
     min_points_number_per_voxel, min_voxel_cluster_size_for_filtering,
     max_points_per_voxel_in_large_cluster, max_voxel_cluster_for_output);
 
-  using std::placeholders::_1;
   pointcloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
     "input", rclcpp::SensorDataQoS().keep_last(1),
-    std::bind(&VoxelGridBasedEuclideanClusterNode::onPointCloud, this, _1));
+    [this](AUTOWARE_MESSAGE_UNIQUE_PTR(sensor_msgs::msg::PointCloud2) && msg) {
+      this->onPointCloud(std::move(msg));
+    });
 
-  cluster_pub_ = this->create_publisher<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
-    "output", rclcpp::QoS{1});
+  cluster_pub_ = this->create_publisher<tier4_perception_msgs::msg::DetectedObjectsWithFeature>("output", 1);
   debug_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("debug/clusters", 1);
   stop_watch_ptr_ = std::make_unique<autoware_utils::StopWatch<std::chrono::milliseconds>>();
   debug_publisher_ =
-    std::make_unique<autoware_utils::DebugPublisher>(this, "voxel_grid_based_euclidean_cluster");
+    std::make_unique<autoware_utils_debug::BasicDebugPublisher<autoware::agnocast_wrapper::Node>>(
+      this, "voxel_grid_based_euclidean_cluster");
   stop_watch_ptr_->tic("cyclic_time");
   stop_watch_ptr_->tic("processing_time");
 }
 
 void VoxelGridBasedEuclideanClusterNode::onPointCloud(
-  const sensor_msgs::msg::PointCloud2::ConstSharedPtr input_msg)
+  AUTOWARE_MESSAGE_UNIQUE_PTR(sensor_msgs::msg::PointCloud2) && input_msg)
 {
   stop_watch_ptr_->toc("processing_time", true);
 
-  // check for empty point cloud and return early
-  if (input_msg->data.empty() || input_msg->width == 0 || input_msg->height == 0) {
-    RCLCPP_DEBUG(get_logger(), "Empty point cloud received, skipping processing");
-    return;
+  // convert ros to pcl
+  if (input_msg->data.empty()) {
+    // NOTE: prevent pcl log spam
+    RCLCPP_WARN_STREAM_THROTTLE(
+      this->get_logger(), *this->get_clock(), 1000, "Empty sensor points!");
   }
-  // cluster and build output msg
-  tier4_perception_msgs::msg::DetectedObjectsWithFeature output;
 
-  cluster_->cluster(input_msg, output);
-  cluster_pub_->publish(output);
+  // cluster and build output msg
+  tier4_perception_msgs::msg::DetectedObjectsWithFeature output_data;
+  sensor_msgs::msg::PointCloud2::ConstSharedPtr ros_msg_ptr(input_msg.get(), [](auto *) {});
+  cluster_->cluster(ros_msg_ptr, output_data);
+
+  auto output = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(cluster_pub_);
+  *output = output_data;
+  cluster_pub_->publish(std::move(output));
 
   // build debug msg
   if (debug_pub_->get_subscription_count() >= 1) {
-    sensor_msgs::msg::PointCloud2 debug;
-    convertObjectMsg2SensorMsg(output, debug);
-    debug_pub_->publish(debug);
+    auto debug = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(debug_pub_);
+    convertObjectMsg2SensorMsg(output_data, *debug);
+    debug_pub_->publish(std::move(debug));
   }
+
   if (debug_publisher_) {
     const double processing_time_ms = stop_watch_ptr_->toc("processing_time", true);
     const double cyclic_time_ms = stop_watch_ptr_->toc("cyclic_time", true);
     const double pipeline_latency_ms =
       std::chrono::duration<double, std::milli>(
-        std::chrono::nanoseconds((this->get_clock()->now() - output.header.stamp).nanoseconds()))
+        std::chrono::nanoseconds((this->get_clock()->now() - output_data.header.stamp).nanoseconds()))
         .count();
     debug_publisher_->publish<autoware_internal_debug_msgs::msg::Float64Stamped>(
       "debug/cyclic_time_ms", cyclic_time_ms);
