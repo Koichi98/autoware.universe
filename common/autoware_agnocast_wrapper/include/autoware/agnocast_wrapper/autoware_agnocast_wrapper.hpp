@@ -480,7 +480,11 @@ public:
   virtual void publish(AUTOWARE_MESSAGE_UNIQUE_PTR(MessageT) && message) = 0;
   virtual void publish(AUTOWARE_MESSAGE_SHARED_PTR(MessageT) && message) = 0;
 
-  /// Convenience publish by const reference (internally copies into allocated message)
+  /// Convenience publish by const reference (internally copies into allocated message).
+  /// This exists here because autoware_utils_debug (e.g. PublishedTimePublisher) cannot depend on
+  /// autoware_agnocast_wrapper due to a circular dependency through autoware_utils. Once the
+  /// wrapper's dependency on autoware_utils is removed, this method could be eliminated by having
+  /// PublishedTimePublisher use allocate_output_message_unique() + publish(unique_ptr&&) instead.
   virtual void publish(const MessageT & data) = 0;
 
   virtual uint32_t get_subscription_count() const = 0;
@@ -523,6 +527,7 @@ public:
     publisher_->publish(std::move(message).move_agnocast_ptr());
   }
 
+  // See the comment on Publisher::publish(const MessageT &) for why this exists.
   void publish(const MessageT & data) override
   {
     auto msg = publisher_->borrow_loaned_message();
@@ -574,6 +579,7 @@ public:
     publisher_->publish(*message);
   }
 
+  // See the comment on Publisher::publish(const MessageT &) for why this exists.
   void publish(const MessageT & data) override
   {
     publisher_->publish(data);
