@@ -62,7 +62,7 @@ int main(int argc, char * argv[])
     loaders.push_back(loader);
 
     auto classes = loader->getAvailableClasses<rclcpp_components::NodeFactory>();
-    std::shared_ptr<autoware::agnocast_wrapper::Node> node_wrapper;
+    std::shared_ptr<@node_cast_type@> node_wrapper;
 
     for (const auto & clazz : classes) {
       std::string name = clazz.c_str();
@@ -86,7 +86,7 @@ int main(int argc, char * argv[])
         }
         auto wrapper = node_factory->create_node_instance(options);
         node_wrapper =
-          std::static_pointer_cast<autoware::agnocast_wrapper::Node>(wrapper.get_node_instance());
+          std::static_pointer_cast<@node_cast_type@>(wrapper.get_node_instance());
         break;
       }
     }
@@ -130,7 +130,7 @@ int main(int argc, char * argv[])
     loaders.push_back(loader);
 
     auto classes = loader->getAvailableClasses<rclcpp_components::NodeFactory>();
-    std::shared_ptr<autoware::agnocast_wrapper::Node> node_wrapper;
+    std::shared_ptr<@node_cast_type@> node_wrapper;
 
     for (const auto & clazz : classes) {
       std::string name = clazz.c_str();
@@ -150,7 +150,7 @@ int main(int argc, char * argv[])
         }
         auto wrapper = node_factory->create_node_instance(options);
         node_wrapper =
-          std::static_pointer_cast<autoware::agnocast_wrapper::Node>(wrapper.get_node_instance());
+          std::static_pointer_cast<@node_cast_type@>(wrapper.get_node_instance());
         break;
       }
     }
