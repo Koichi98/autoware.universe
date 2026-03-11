@@ -21,20 +21,21 @@ namespace autoware::detected_object_feature_remover
 DetectedObjectFeatureRemover::DetectedObjectFeatureRemover(const rclcpp::NodeOptions & node_options)
 : Node("detected_object_feature_remover", node_options)
 {
-  using std::placeholders::_1;
-  pub_ = this->create_publisher<DetectedObjects>("~/output", rclcpp::QoS(1));
+  pub_ = this->create_publisher<DetectedObjects>("~/output", 1);
+
   sub_ = this->create_subscription<DetectedObjectsWithFeature>(
-    "~/input", 1, std::bind(&DetectedObjectFeatureRemover::objectCallback, this, _1));
-  published_time_publisher_ = std::make_unique<autoware_utils::PublishedTimePublisher>(this);
+    "~/input", 1,
+    [this](AUTOWARE_MESSAGE_UNIQUE_PTR(DetectedObjectsWithFeature) && msg) {
+      this->objectCallback(std::move(msg));
+    });
 }
 
 void DetectedObjectFeatureRemover::objectCallback(
-  const DetectedObjectsWithFeature::ConstSharedPtr input)
+  AUTOWARE_MESSAGE_UNIQUE_PTR(DetectedObjectsWithFeature) && input)
 {
-  DetectedObjects output;
-  convert(*input, output);
-  pub_->publish(output);
-  published_time_publisher_->publish_if_subscribed(pub_, output.header.stamp);
+  auto output = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_);
+  convert(*input, *output);
+  pub_->publish(std::move(output));
 }
 
 void DetectedObjectFeatureRemover::convert(
