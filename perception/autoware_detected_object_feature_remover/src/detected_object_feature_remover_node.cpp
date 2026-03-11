@@ -28,6 +28,9 @@ DetectedObjectFeatureRemover::DetectedObjectFeatureRemover(const rclcpp::NodeOpt
     [this](AUTOWARE_MESSAGE_UNIQUE_PTR(DetectedObjectsWithFeature) && msg) {
       this->objectCallback(std::move(msg));
     });
+  published_time_publisher_ =
+    std::make_unique<
+      autoware_utils_debug::BasicPublishedTimePublisher<autoware::agnocast_wrapper::Node>>(this);
 }
 
 void DetectedObjectFeatureRemover::objectCallback(
@@ -35,7 +38,9 @@ void DetectedObjectFeatureRemover::objectCallback(
 {
   auto output = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_);
   convert(*input, *output);
+  const auto header_stamp = output->header.stamp;
   pub_->publish(std::move(output));
+  published_time_publisher_->publish_if_subscribed(pub_, header_stamp);
 }
 
 void DetectedObjectFeatureRemover::convert(

@@ -137,7 +137,8 @@ TEST(FeatureRemoverTest, TestArbitraryObject)
   auto stamp = node->get_clock()->now();
   constexpr bool as_empty = false;
   auto input = generate_feature_objects(stamp, as_empty);
-  test_manager->test_pub_msg<DetectedObjectsWithFeature>(node, input_topic, input);
+  test_manager->test_pub_msg<DetectedObjectsWithFeature>(
+    node->get_rclcpp_node(), input_topic, input);
 
   // Check output
   auto expect = generate_detected_object();
@@ -169,7 +170,8 @@ TEST(FeatureRemoverTest, TestEmptyObject)
   auto stamp = node->get_clock()->now();
   constexpr bool as_empty = true;
   auto input = generate_feature_objects(stamp, as_empty);
-  test_manager->test_pub_msg<DetectedObjectsWithFeature>(node, input_topic, input);
+  test_manager->test_pub_msg<DetectedObjectsWithFeature>(
+    node->get_rclcpp_node(), input_topic, input);
 
   // Check output
   EXPECT_EQ(0, output.objects.size());
