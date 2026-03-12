@@ -26,10 +26,6 @@
 namespace autoware::agnocast_wrapper
 {
 
-/// @brief Check if agnocast mode is enabled via ENABLE_AGNOCAST environment variable
-/// @return true if ENABLE_AGNOCAST=1, false otherwise
-bool use_agnocast();
-
 /// @brief Node wrapper class that can switch between rclcpp::Node and agnocast::Node at runtime
 /// based on the ENABLE_AGNOCAST environment variable.
 class Node
