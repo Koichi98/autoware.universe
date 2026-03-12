@@ -12,6 +12,7 @@
 
   <depend>agnocastlib</depend>
   <depend>autoware_utils</depend>
+  <depend>message_filters</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
   <depend>class_loader</depend>

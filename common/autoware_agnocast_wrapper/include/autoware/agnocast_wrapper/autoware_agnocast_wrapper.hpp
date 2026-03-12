@@ -17,7 +17,9 @@
 #include <string>
 #include <utility>
 
+#ifndef USE_AGNOCAST_ENABLED
 #define USE_AGNOCAST_ENABLED
+#endif
 #ifdef USE_AGNOCAST_ENABLED
 
 #include "autoware_utils/ros/polling_subscriber.hpp"
