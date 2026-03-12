@@ -10,6 +10,8 @@ find_package(Boost REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(OpenMP)
+find_package(agnocastlib REQUIRED)
+find_package(autoware_agnocast_wrapper REQUIRED)
 
 include_directories(
   include
@@ -40,7 +42,14 @@ target_link_libraries(${PROJECT_NAME}
   ${PCL_LIBRARIES}
 )
 
+target_include_directories(${PROJECT_NAME} PRIVATE
+  ${agnocastlib_INCLUDE_DIRS}
+  ${autoware_agnocast_wrapper_INCLUDE_DIRS}
+)
+
 ament_target_dependencies(${PROJECT_NAME}
+  agnocastlib
+  autoware_agnocast_wrapper
   autoware_qos_utils
   grid_map_pcl
   grid_map_ros
@@ -64,6 +73,8 @@ ament_target_dependencies(${PROJECT_NAME}
   visualization_msgs
 )
 
+autoware_agnocast_wrapper_setup(${PROJECT_NAME})
+
 if(OPENMP_FOUND)
   set_target_properties(${PROJECT_NAME} PROPERTIES
     COMPILE_FLAGS ${OpenMP_CXX_FLAGS}
@@ -83,9 +94,11 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE voxel_based_approximate_compare_map_filter_node)
 
 # -- Voxel Based Compare Map Filter --
-rclcpp_components_register_node(${PROJECT_NAME}
+autoware_agnocast_wrapper_register_node(${PROJECT_NAME}
   PLUGIN "autoware::compare_map_segmentation::VoxelBasedCompareMapFilterComponent"
-  EXECUTABLE voxel_based_compare_map_filter_node)
+  EXECUTABLE voxel_based_compare_map_filter_node
+  AGNOCAST_EXECUTOR SingleThreadedAgnocast
+)
 
 # -- Voxel Distance Based Compare Map Filter --
 rclcpp_components_register_node(${PROJECT_NAME}
