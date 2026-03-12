@@ -19,15 +19,11 @@
 
 #include "autoware_perception_msgs/msg/object_classification.hpp"
 
-#include <tf2/LinearMath/Matrix3x3.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2/utils.h>
+#include <tf2/LinearMath/Matrix3x3.hpp>
+#include <tf2/LinearMath/Quaternion.hpp>
+#include <tf2/utils.hpp>
 
-#ifdef ROS_DISTRO_GALACTIC
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#else
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
-#endif
 
 #include <memory>
 #include <string>
@@ -184,14 +180,11 @@ void ShapeEstimationNode::callback(
   const auto header_stamp = output_msg->header.stamp;
   pub_->publish(std::move(output_msg));
 
-  const double cyclic_time = stop_watch_ptr_->toc("cyclic_time", true);
-  const double processing_time = stop_watch_ptr_->toc("processing_time", true);
-
   published_time_publisher_->publish_if_subscribed(pub_, header_stamp);
   processing_time_publisher_->publish<autoware_internal_debug_msgs::msg::Float64Stamped>(
-    "debug/cyclic_time_ms", cyclic_time);
+    "debug/cyclic_time_ms", stop_watch_ptr_->toc("cyclic_time", true));
   processing_time_publisher_->publish<autoware_internal_debug_msgs::msg::Float64Stamped>(
-    "debug/processing_time_ms", processing_time);
+    "debug/processing_time_ms", stop_watch_ptr_->toc("processing_time", true));
 }
 }  // namespace autoware::shape_estimation
 
