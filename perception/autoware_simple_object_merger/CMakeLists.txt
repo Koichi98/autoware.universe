@@ -5,6 +5,9 @@ project(autoware_simple_object_merger)
 find_package(autoware_cmake REQUIRED)
 autoware_package()
 
+find_package(agnocastlib REQUIRED)
+find_package(autoware_agnocast_wrapper REQUIRED)
+
 include_directories(
   include
 )
@@ -16,9 +19,22 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   src/simple_tracked_object_merger_node.cpp
 )
 
-rclcpp_components_register_node(${PROJECT_NAME}
+target_include_directories(${PROJECT_NAME} PRIVATE
+  ${agnocastlib_INCLUDE_DIRS}
+  ${autoware_agnocast_wrapper_INCLUDE_DIRS}
+)
+
+ament_target_dependencies(${PROJECT_NAME}
+  agnocastlib
+  autoware_agnocast_wrapper
+)
+
+autoware_agnocast_wrapper_setup(${PROJECT_NAME})
+
+autoware_agnocast_wrapper_register_node(${PROJECT_NAME}
   PLUGIN "autoware::simple_object_merger::SimpleDetectedObjectMergerNode"
   EXECUTABLE simple_object_merger_node
+  AGNOCAST_EXECUTOR SingleThreadedAgnocast
 )
 
 rclcpp_components_register_node(${PROJECT_NAME}

@@ -18,9 +18,7 @@
 #include "autoware_utils/ros/transform_listener.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-#include <message_filters/subscriber.h>
-#include <message_filters/sync_policies/approximate_time.h>
-#include <message_filters/synchronizer.h>
+#include <autoware/agnocast_wrapper/message_filters.hpp>
 
 #include <chrono>
 #include <memory>
@@ -50,11 +48,13 @@ private:
   typename rclcpp::Subscription<ObjsMsgType>::SharedPtr sub_objects_{};
   std::vector<typename rclcpp::Subscription<ObjsMsgType>::SharedPtr> sub_objects_array{};
 
-  // Subscriber by message_filter
-  typename message_filters::Subscriber<ObjsMsgType> input0_{};
-  typename message_filters::Subscriber<ObjsMsgType> input1_{};
-  using SyncPolicy = message_filters::sync_policies::ApproximateTime<ObjsMsgType, ObjsMsgType>;
-  using Sync = message_filters::Synchronizer<SyncPolicy>;
+  // Subscriber by message_filter (agnocast wrapper)
+  autoware::agnocast_wrapper::message_filters::Subscriber<ObjsMsgType> input0_{};
+  autoware::agnocast_wrapper::message_filters::Subscriber<ObjsMsgType> input1_{};
+  using SyncPolicy =
+    autoware::agnocast_wrapper::message_filters::sync_policies::ApproximateTime<
+      ObjsMsgType, ObjsMsgType>;
+  using Sync = autoware::agnocast_wrapper::message_filters::Synchronizer<SyncPolicy>;
   typename std::shared_ptr<Sync> sync_ptr_;
 
   // Timer
@@ -65,8 +65,8 @@ private:
 
   // Process callbacks
   virtual void approximateMerger(
-    const typename ObjsMsgType::ConstSharedPtr & object_msg0,
-    const typename ObjsMsgType::ConstSharedPtr & object_msg1);
+    AUTOWARE_MESSAGE_SHARED_PTR(const ObjsMsgType) && object_msg0,
+    AUTOWARE_MESSAGE_SHARED_PTR(const ObjsMsgType) && object_msg1);
 
   virtual void onTimer();
 

@@ -35,37 +35,42 @@ SimpleDetectedObjectMergerNode::SimpleDetectedObjectMergerNode(
 }
 
 void SimpleDetectedObjectMergerNode::approximateMerger(
-  const DetectedObjects::ConstSharedPtr & object_msg0,
-  const DetectedObjects::ConstSharedPtr & object_msg1)
+  AUTOWARE_MESSAGE_SHARED_PTR(const DetectedObjects) && object_msg0,
+  AUTOWARE_MESSAGE_SHARED_PTR(const DetectedObjects) && object_msg1)
 {
+  const auto & msg0 = *object_msg0;
+  const auto & msg1 = *object_msg1;
+
   DetectedObjects::SharedPtr transformed_objects0;
-  if (node_param_.new_frame_id == object_msg0->header.frame_id) {
-    transformed_objects0 = std::make_shared<DetectedObjects>(*object_msg0);
+  if (node_param_.new_frame_id == msg0.header.frame_id) {
+    transformed_objects0 = std::make_shared<DetectedObjects>(msg0);
   } else {
     auto transform0 = transform_listener_->get_transform(
-      node_param_.new_frame_id, object_msg0->header.frame_id, object_msg0->header.stamp,
+      node_param_.new_frame_id, msg0.header.frame_id, msg0.header.stamp,
       rclcpp::Duration::from_seconds(0.01));
     if (!transform0) {
       return;
     }
-    transformed_objects0 = getTransformedObjects(object_msg0, node_param_.new_frame_id, transform0);
+    transformed_objects0 = getTransformedObjects(
+      std::make_shared<const DetectedObjects>(msg0), node_param_.new_frame_id, transform0);
   }
 
   DetectedObjects::SharedPtr transformed_objects1;
-  if (node_param_.new_frame_id == object_msg1->header.frame_id) {
-    transformed_objects1 = std::make_shared<DetectedObjects>(*object_msg1);
+  if (node_param_.new_frame_id == msg1.header.frame_id) {
+    transformed_objects1 = std::make_shared<DetectedObjects>(msg1);
   } else {
     auto transform1 = transform_listener_->get_transform(
-      node_param_.new_frame_id, object_msg1->header.frame_id, object_msg1->header.stamp,
+      node_param_.new_frame_id, msg1.header.frame_id, msg1.header.stamp,
       rclcpp::Duration::from_seconds(0.01));
     if (!transform1) {
       return;
     }
-    transformed_objects1 = getTransformedObjects(object_msg1, node_param_.new_frame_id, transform1);
+    transformed_objects1 = getTransformedObjects(
+      std::make_shared<const DetectedObjects>(msg1), node_param_.new_frame_id, transform1);
   }
 
   DetectedObjects output_objects;
-  output_objects.header = object_msg0->header;
+  output_objects.header = msg0.header;
   output_objects.header.frame_id = node_param_.new_frame_id;
   output_objects.objects.reserve(
     transformed_objects0->objects.size() + transformed_objects1->objects.size());

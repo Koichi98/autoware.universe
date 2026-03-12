@@ -80,16 +80,18 @@ SimpleObjectMergerBase<ObjsMsgType>::SimpleObjectMergerBase(
   // Subscriber
   transform_listener_ = std::make_shared<autoware_utils::TransformListener>(this);
   if (input_topic_size_ == 2) {
-    // Trigger the process and publish by message_filter
+    // Trigger the process and publish by message_filter (agnocast wrapper)
     input0_.subscribe(
       this, node_param_.topic_names.at(0), rclcpp::QoS{1}.best_effort().get_rmw_qos_profile());
     input1_.subscribe(
       this, node_param_.topic_names.at(1), rclcpp::QoS{1}.best_effort().get_rmw_qos_profile());
     sync_ptr_ = std::make_shared<Sync>(SyncPolicy(10), input0_, input1_);
     sync_ptr_->registerCallback(
-      std::bind(
-        &SimpleObjectMergerBase::approximateMerger, this, std::placeholders::_1,
-        std::placeholders::_2));
+      [this](
+        AUTOWARE_MESSAGE_SHARED_PTR(const ObjsMsgType) && msg0,
+        AUTOWARE_MESSAGE_SHARED_PTR(const ObjsMsgType) && msg1) {
+        this->approximateMerger(std::move(msg0), std::move(msg1));
+      });
   } else {
     // Trigger the process by timer
     sub_objects_array.resize(input_topic_size_);
@@ -139,8 +141,8 @@ typename ObjsMsgType::SharedPtr SimpleObjectMergerBase<ObjsMsgType>::getTransfor
 
 template <class ObjsMsgType>
 void SimpleObjectMergerBase<ObjsMsgType>::approximateMerger(
-  [[maybe_unused]] const typename ObjsMsgType::ConstSharedPtr & object_msg0,
-  [[maybe_unused]] const typename ObjsMsgType::ConstSharedPtr & object_msg1)
+  [[maybe_unused]] AUTOWARE_MESSAGE_SHARED_PTR(const ObjsMsgType) && object_msg0,
+  [[maybe_unused]] AUTOWARE_MESSAGE_SHARED_PTR(const ObjsMsgType) && object_msg1)
 {
   // This must be overridden
 }

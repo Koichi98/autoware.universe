@@ -49,8 +49,8 @@ private:
   std::unordered_map<std::string, UUIDMapping> uuid_mapper_;
 
   void approximateMerger(
-    const TrackedObjects::ConstSharedPtr & object_msg0,
-    const TrackedObjects::ConstSharedPtr & object_msg1) override;
+    AUTOWARE_MESSAGE_SHARED_PTR(const TrackedObjects) && object_msg0,
+    AUTOWARE_MESSAGE_SHARED_PTR(const TrackedObjects) && object_msg1) override;
   void onTimer() override;
 
   void mapUUID(TrackedObject & object, const int & node_id);
