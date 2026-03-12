@@ -96,9 +96,13 @@ DetectionByTracker::DetectionByTracker(const rclcpp::NodeOptions & node_options)
     "~/input/tracked_objects", rclcpp::QoS{1},
     std::bind(&TrackerHandler::onTrackedObjects, &tracker_handler_, std::placeholders::_1));
   initial_objects_sub_ =
-    create_subscription<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
-      "~/input/initial_objects", rclcpp::QoS{1},
-      std::bind(&DetectionByTracker::onObjects, this, std::placeholders::_1));
+    autoware::agnocast_wrapper::create_subscription<
+      tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
+      this, "~/input/initial_objects", rclcpp::QoS{1},
+      [this](
+        AUTOWARE_MESSAGE_UNIQUE_PTR(tier4_perception_msgs::msg::DetectedObjectsWithFeature) &&
+          msg) { this->onObjects(std::move(msg)); },
+      agnocast::SubscriptionOptions{});
   objects_pub_ =
     create_publisher<autoware_perception_msgs::msg::DetectedObjects>("~/output", rclcpp::QoS{1});
 
@@ -148,7 +152,7 @@ void DetectionByTracker::setMaxSearchRange()
 }
 
 void DetectionByTracker::onObjects(
-  const tier4_perception_msgs::msg::DetectedObjectsWithFeature::ConstSharedPtr input_msg)
+  AUTOWARE_MESSAGE_UNIQUE_PTR(tier4_perception_msgs::msg::DetectedObjectsWithFeature) && input_msg)
 {
   debugger_->startMeasureProcessingTime();
   autoware_perception_msgs::msg::DetectedObjects detected_objects;
