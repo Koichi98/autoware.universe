@@ -28,6 +28,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 using Label = autoware_perception_msgs::msg::ObjectClassification;
@@ -94,17 +95,17 @@ DetectionByTracker::DetectionByTracker(const rclcpp::NodeOptions & node_options)
   // Create publishers and subscribers
   trackers_sub_ = create_subscription<autoware_perception_msgs::msg::TrackedObjects>(
     "~/input/tracked_objects", rclcpp::QoS{1},
-    [this](
-      const AUTOWARE_MESSAGE_CONST_SHARED_PTR(autoware_perception_msgs::msg::TrackedObjects) &
-      input_msg) { tracker_handler_.onTrackedObjects(input_msg); });
-  AUTOWARE_SUBSCRIPTION_OPTIONS options;
-  initial_objects_sub_ = create_subscription<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
-    "~/input/initial_objects", rclcpp::QoS{1},
-    [this](
-      const AUTOWARE_MESSAGE_CONST_SHARED_PTR(
-        tier4_perception_msgs::msg::DetectedObjectsWithFeature) &
-      input_msg) { onObjects(input_msg); },
-    options);
+    [this](const AUTOWARE_MESSAGE_CONST_SHARED_PTR(
+      autoware_perception_msgs::msg::TrackedObjects) & msg) {
+      tracker_handler_.onTrackedObjects(*msg);
+    });
+  initial_objects_sub_ =
+    create_subscription<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
+      "~/input/initial_objects", rclcpp::QoS{1},
+      [this](
+        const AUTOWARE_MESSAGE_CONST_SHARED_PTR(
+          tier4_perception_msgs::msg::DetectedObjectsWithFeature) &
+        input_msg) { onObjects(input_msg); });
   objects_pub_ =
     create_publisher<autoware_perception_msgs::msg::DetectedObjects>("~/output", rclcpp::QoS{1});
 
@@ -126,8 +127,9 @@ DetectionByTracker::DetectionByTracker(const rclcpp::NodeOptions & node_options)
     false, 10, 10000, 0.7, 0.3, 0, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(),
     10000);
   debugger_ = std::make_shared<Debugger>(this);
-  published_time_publisher_ = std::make_unique<
-    autoware_utils::BasicPublishedTimePublisher<autoware::agnocast_wrapper::Node>>(this);
+  published_time_publisher_ =
+    std::make_unique<autoware_utils::BasicPublishedTimePublisher<autoware::agnocast_wrapper::Node>>(
+      this);
 }
 
 void DetectionByTracker::setMaxSearchRange()
