@@ -8,9 +8,11 @@ ament_auto_add_library(autoware_external_cmd_converter SHARED
   src/node.cpp
 )
 
-rclcpp_components_register_node(autoware_external_cmd_converter
+autoware_agnocast_wrapper_register_node(autoware_external_cmd_converter
   PLUGIN "autoware::external_cmd_converter::ExternalCmdConverterNode"
   EXECUTABLE external_cmd_converter_node
+  AGNOCAST_EXECUTOR AgnocastOnlyCallbackIsolatedExecutor
+  ROS2_EXECUTOR SingleThreadedExecutor
 )
 
 if(BUILD_TESTING)
