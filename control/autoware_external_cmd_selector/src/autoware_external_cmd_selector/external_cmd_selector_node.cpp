@@ -16,6 +16,7 @@
 
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
@@ -141,7 +142,10 @@ ExternalCmdSelector::ExternalCmdSelector(const rclcpp::NodeOptions & node_option
 void ExternalCmdSelector::on_pedals_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(PedalsCommand) & msg, uint8_t mode)
 {
-  if (current_selector_mode_.data != mode) return;
+  {
+    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
+    if (current_selector_mode_.data != mode) return;
+  }
   auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_pedals_cmd_);
   *out = *msg;
   pub_pedals_cmd_->publish(std::move(out));
@@ -150,7 +154,10 @@ void ExternalCmdSelector::on_pedals_cmd(
 void ExternalCmdSelector::on_steering_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(SteeringCommand) & msg, uint8_t mode)
 {
-  if (current_selector_mode_.data != mode) return;
+  {
+    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
+    if (current_selector_mode_.data != mode) return;
+  }
   auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_steering_cmd_);
   *out = *msg;
   pub_steering_cmd_->publish(std::move(out));
@@ -159,7 +166,10 @@ void ExternalCmdSelector::on_steering_cmd(
 void ExternalCmdSelector::on_heartbeat(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(OperatorHeartbeat) & msg, uint8_t mode)
 {
-  if (current_selector_mode_.data != mode) return;
+  {
+    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
+    if (current_selector_mode_.data != mode) return;
+  }
   auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_heartbeat_);
   *out = *msg;
   pub_heartbeat_->publish(std::move(out));
@@ -168,7 +178,10 @@ void ExternalCmdSelector::on_heartbeat(
 void ExternalCmdSelector::on_gear_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(GearCommand) & msg, uint8_t mode)
 {
-  if (current_selector_mode_.data != mode) return;
+  {
+    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
+    if (current_selector_mode_.data != mode) return;
+  }
   auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_gear_cmd_);
   *out = *msg;
   pub_gear_cmd_->publish(std::move(out));
@@ -177,7 +190,10 @@ void ExternalCmdSelector::on_gear_cmd(
 void ExternalCmdSelector::on_turn_indicators_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(TurnIndicatorsCommand) & msg, uint8_t mode)
 {
-  if (current_selector_mode_.data != mode) return;
+  {
+    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
+    if (current_selector_mode_.data != mode) return;
+  }
   auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_turn_indicators_cmd_);
   *out = *msg;
   pub_turn_indicators_cmd_->publish(std::move(out));
@@ -186,7 +202,10 @@ void ExternalCmdSelector::on_turn_indicators_cmd(
 void ExternalCmdSelector::on_hazard_lights_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(HazardLightsCommand) & msg, uint8_t mode)
 {
-  if (current_selector_mode_.data != mode) return;
+  {
+    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
+    if (current_selector_mode_.data != mode) return;
+  }
   auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_hazard_lights_cmd_);
   *out = *msg;
   pub_hazard_lights_cmd_->publish(std::move(out));
@@ -196,7 +215,10 @@ bool ExternalCmdSelector::on_select_external_command(
   const CommandSourceSelect::Request::SharedPtr req,
   const CommandSourceSelect::Response::SharedPtr res)
 {
-  current_selector_mode_.data = req->mode.data;
+  {
+    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
+    current_selector_mode_.data = req->mode.data;
+  }
   res->success = true;
   res->message = "Success.";
   return true;
@@ -205,7 +227,10 @@ bool ExternalCmdSelector::on_select_external_command(
 void ExternalCmdSelector::on_timer()
 {
   auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_current_selector_mode_);
-  *out = current_selector_mode_;
+  {
+    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
+    *out = current_selector_mode_;
+  }
   pub_current_selector_mode_->publish(std::move(out));
   updater_.force_update();
 }
