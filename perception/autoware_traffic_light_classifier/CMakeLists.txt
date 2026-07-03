@@ -133,10 +133,38 @@ if(BUILD_TESTING)
     test/test_utils.cpp
   )
 
-  ament_add_ros_isolated_gtest(test_traffic_light_classifier_characteristics
-    test/test_traffic_light_classifier_characteristics.cpp
+  # ROS-free unit tests for the classification core.
+  ament_auto_add_gtest(test_traffic_light_classifier
+    test/test_traffic_light_classifier.cpp
   )
-  target_link_libraries(test_traffic_light_classifier_characteristics
+  target_link_libraries(test_traffic_light_classifier
+    ${PROJECT_NAME}
+    ${OpenCV_LIBRARIES}
+  )
+
+  # ROS-free unit tests for the color classification core (ColorClassifierCore).
+  ament_auto_add_gtest(test_color_classifier
+    test/test_color_classifier.cpp
+  )
+  target_link_libraries(test_color_classifier
+    ${PROJECT_NAME}
+    ${OpenCV_LIBRARIES}
+  )
+
+  # ColorClassifier ROS adapter tests (the size guard needs the node's logger).
+  ament_add_ros_isolated_gtest(test_color_classifier_adapter
+    test/test_color_classifier_adapter.cpp
+  )
+  target_link_libraries(test_color_classifier_adapter
+    ${PROJECT_NAME}
+    ${OpenCV_LIBRARIES}
+  )
+
+  # Node-level integration tests (topic-driven pub/sub + diagnostics).
+  ament_add_ros_isolated_gtest(test_traffic_light_classifier_integration
+    test/test_traffic_light_classifier_integration.cpp
+  )
+  target_link_libraries(test_traffic_light_classifier_integration
     ${PROJECT_NAME}
     ${OpenCV_LIBRARIES}
   )
