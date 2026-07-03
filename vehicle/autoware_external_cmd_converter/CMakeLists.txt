@@ -15,7 +15,7 @@ autoware_agnocast_wrapper_register_node(autoware_external_cmd_converter
   ROS2_EXECUTOR SingleThreadedExecutor
 )
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND NOT "$ENV{ENABLE_AGNOCAST}" STREQUAL "1")
   ament_add_ros_isolated_gtest(test_${PROJECT_NAME}
     tests/test_external_cmd_converter.cpp
   )

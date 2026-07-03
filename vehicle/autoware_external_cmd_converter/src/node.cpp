@@ -34,12 +34,6 @@ ExternalCmdConverterNode::ExternalCmdConverterNode(const rclcpp::NodeOptions & n
   heartbeat_sub_ = create_subscription<ManualOperatorHeartbeat>(
     "in/heartbeat", 1, std::bind(&ExternalCmdConverterNode::on_heartbeat, this, _1));
 
-  // Polling Subscribers
-  steering_cmd_sub_ = create_polling_subscriber<SteeringCommand>("in/steering_cmd", rclcpp::QoS{1});
-  velocity_sub_ = create_polling_subscriber<Odometry>("in/odometry", rclcpp::QoS{1});
-  gear_cmd_sub_ = create_polling_subscriber<GearCommand>("in/gear_cmd", rclcpp::QoS{1});
-  gate_mode_sub_ = create_polling_subscriber<GateMode>("in/current_gate_mode", rclcpp::QoS{1});
-
   // Parameter
   ref_vel_gain_ = declare_parameter<double>("ref_vel_gain");
 
@@ -73,9 +67,6 @@ ExternalCmdConverterNode::ExternalCmdConverterNode(const rclcpp::NodeOptions & n
   // Diagnostics
   updater_.setHardwareID("external_cmd_converter");
   updater_.add("remote_control_topic_status", this, &ExternalCmdConverterNode::check_topic_status);
-
-  // current_gear_cmd_ is always refreshed from gear_cmd_sub_.take_data() at the start of
-  // on_pedals_cmd() before any use, so it intentionally starts empty (no default message needed).
 }
 
 void ExternalCmdConverterNode::on_timer()

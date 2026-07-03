@@ -62,11 +62,14 @@ private:
   AUTOWARE_SUBSCRIPTION_PTR(ManualOperatorHeartbeat) heartbeat_sub_;
 
   // Polling Subscriber
-  // create_polling_subscriber is a node member in both =0 and =1 wrapper builds.
-  AUTOWARE_POLLING_SUBSCRIBER_PTR(SteeringCommand) steering_cmd_sub_;
-  AUTOWARE_POLLING_SUBSCRIBER_PTR(Odometry) velocity_sub_;
-  AUTOWARE_POLLING_SUBSCRIBER_PTR(GearCommand) gear_cmd_sub_;
-  AUTOWARE_POLLING_SUBSCRIBER_PTR(GateMode) gate_mode_sub_;
+  AUTOWARE_POLLING_SUBSCRIBER_PTR(SteeringCommand)
+  steering_cmd_sub_ = create_polling_subscriber<SteeringCommand>("in/steering_cmd", rclcpp::QoS{1});
+  AUTOWARE_POLLING_SUBSCRIBER_PTR(Odometry)
+  velocity_sub_ = create_polling_subscriber<Odometry>("in/odometry", rclcpp::QoS{1});
+  AUTOWARE_POLLING_SUBSCRIBER_PTR(GearCommand)
+  gear_cmd_sub_ = create_polling_subscriber<GearCommand>("in/gear_cmd", rclcpp::QoS{1});
+  AUTOWARE_POLLING_SUBSCRIBER_PTR(GateMode)
+  gate_mode_sub_ = create_polling_subscriber<GateMode>("in/current_gate_mode", rclcpp::QoS{1});
 
   void on_pedals_cmd(const AUTOWARE_MESSAGE_CONST_SHARED_PTR(PedalsCommand) & cmd_ptr);
   void on_heartbeat(const AUTOWARE_MESSAGE_CONST_SHARED_PTR(ManualOperatorHeartbeat) & msg);

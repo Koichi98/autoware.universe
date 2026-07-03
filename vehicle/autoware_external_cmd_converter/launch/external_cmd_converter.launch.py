@@ -14,8 +14,14 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.actions import IncludeLaunchDescription
+from launch.conditions import IfCondition
+from launch.conditions import UnlessCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import LoadComposableNodes
+from launch_ros.actions import Node
 from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 
@@ -104,32 +110,51 @@ def generate_launch_description():
         ),
     ]
 
+    # Resolves ld_preload_value (LD_PRELOAD with the Agnocast heaphook prepended) and
+    # use_agnocast based on the ENABLE_AGNOCAST environment variable, and spawns the
+    # Agnocast discovery agent when enabled. No-op when Agnocast is disabled.
+    agnocast_env = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("autoware_agnocast_wrapper"),
+                    "launch",
+                    "agnocast_env.launch.py",
+                ]
+            )
+        ),
+    )
+
+    remappings = [
+        _create_mapping_tuple("in/pedals_cmd"),
+        _create_mapping_tuple("in/steering_cmd"),
+        _create_mapping_tuple("in/gear_cmd"),
+        _create_mapping_tuple("in/heartbeat"),
+        _create_mapping_tuple("in/current_gate_mode"),
+        _create_mapping_tuple("in/odometry"),
+        _create_mapping_tuple("out/control_cmd"),
+    ]
+
+    parameters = [
+        dict(  # noqa: C406 for using helper function
+            [
+                _create_mapping_tuple("csv_path_accel_map"),
+                _create_mapping_tuple("csv_path_brake_map"),
+                _create_mapping_tuple("ref_vel_gain"),
+                _create_mapping_tuple("timer_rate"),
+                _create_mapping_tuple("wait_for_first_topic"),
+                _create_mapping_tuple("control_command_timeout"),
+                _create_mapping_tuple("emergency_stop_timeout"),
+            ]
+        )
+    ]
+
     component = ComposableNode(
         package="autoware_external_cmd_converter",
         plugin="autoware::external_cmd_converter::ExternalCmdConverterNode",
         name="external_cmd_converter",
-        remappings=[
-            _create_mapping_tuple("in/pedals_cmd"),
-            _create_mapping_tuple("in/steering_cmd"),
-            _create_mapping_tuple("in/gear_cmd"),
-            _create_mapping_tuple("in/heartbeat"),
-            _create_mapping_tuple("in/current_gate_mode"),
-            _create_mapping_tuple("in/odometry"),
-            _create_mapping_tuple("out/control_cmd"),
-        ],
-        parameters=[
-            dict(  # noqa: C406 for using helper function
-                [
-                    _create_mapping_tuple("csv_path_accel_map"),
-                    _create_mapping_tuple("csv_path_brake_map"),
-                    _create_mapping_tuple("ref_vel_gain"),
-                    _create_mapping_tuple("timer_rate"),
-                    _create_mapping_tuple("wait_for_first_topic"),
-                    _create_mapping_tuple("control_command_timeout"),
-                    _create_mapping_tuple("emergency_stop_timeout"),
-                ]
-            )
-        ],
+        remappings=remappings,
+        parameters=parameters,
         extra_arguments=[
             {
                 "use_intra_process_comms": LaunchConfiguration("use_intra_process"),
@@ -137,9 +162,24 @@ def generate_launch_description():
         ],
     )
 
+    # ENABLE_AGNOCAST=0: load into the existing component container (default behavior).
     loader = LoadComposableNodes(
         composable_node_descriptions=[component],
         target_container=LaunchConfiguration("target_container"),
+        condition=UnlessCondition(LaunchConfiguration("use_agnocast")),
     )
 
-    return LaunchDescription(arguments + [loader])
+    # ENABLE_AGNOCAST=1: a plain component container cannot spin Agnocast entities and
+    # lacks the heaphook, so run the standalone executable with LD_PRELOAD instead.
+    standalone_node = Node(
+        package="autoware_external_cmd_converter",
+        executable="external_cmd_converter_node",
+        name="external_cmd_converter",
+        remappings=remappings,
+        parameters=parameters,
+        output="screen",
+        additional_env={"LD_PRELOAD": LaunchConfiguration("ld_preload_value")},
+        condition=IfCondition(LaunchConfiguration("use_agnocast")),
+    )
+
+    return LaunchDescription(arguments + [agnocast_env, loader, standalone_node])
