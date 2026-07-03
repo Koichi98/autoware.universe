@@ -15,8 +15,8 @@
 #include "autoware/external_cmd_selector/external_cmd_selector_node.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <utility>
 
@@ -124,7 +124,7 @@ ExternalCmdSelector::ExternalCmdSelector(const rclcpp::NodeOptions & node_option
     }
     throw std::invalid_argument("unknown selector mode");
   };
-  current_selector_mode_.data = convert_selector_mode(initial_selector_mode);
+  current_selector_mode_.store(convert_selector_mode(initial_selector_mode));
 
   // Diagnostics Updater
   updater_.setHardwareID("external_cmd_selector");
@@ -142,83 +142,50 @@ ExternalCmdSelector::ExternalCmdSelector(const rclcpp::NodeOptions & node_option
 void ExternalCmdSelector::on_pedals_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(PedalsCommand) & msg, uint8_t mode)
 {
-  {
-    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
-    if (current_selector_mode_.data != mode) return;
-  }
-  auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_pedals_cmd_);
-  *out = *msg;
-  pub_pedals_cmd_->publish(std::move(out));
+  if (current_selector_mode_.load() != mode) return;
+  pub_pedals_cmd_->publish(*msg);
 }
 
 void ExternalCmdSelector::on_steering_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(SteeringCommand) & msg, uint8_t mode)
 {
-  {
-    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
-    if (current_selector_mode_.data != mode) return;
-  }
-  auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_steering_cmd_);
-  *out = *msg;
-  pub_steering_cmd_->publish(std::move(out));
+  if (current_selector_mode_.load() != mode) return;
+  pub_steering_cmd_->publish(*msg);
 }
 
 void ExternalCmdSelector::on_heartbeat(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(OperatorHeartbeat) & msg, uint8_t mode)
 {
-  {
-    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
-    if (current_selector_mode_.data != mode) return;
-  }
-  auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_heartbeat_);
-  *out = *msg;
-  pub_heartbeat_->publish(std::move(out));
+  if (current_selector_mode_.load() != mode) return;
+  pub_heartbeat_->publish(*msg);
 }
 
 void ExternalCmdSelector::on_gear_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(GearCommand) & msg, uint8_t mode)
 {
-  {
-    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
-    if (current_selector_mode_.data != mode) return;
-  }
-  auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_gear_cmd_);
-  *out = *msg;
-  pub_gear_cmd_->publish(std::move(out));
+  if (current_selector_mode_.load() != mode) return;
+  pub_gear_cmd_->publish(*msg);
 }
 
 void ExternalCmdSelector::on_turn_indicators_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(TurnIndicatorsCommand) & msg, uint8_t mode)
 {
-  {
-    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
-    if (current_selector_mode_.data != mode) return;
-  }
-  auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_turn_indicators_cmd_);
-  *out = *msg;
-  pub_turn_indicators_cmd_->publish(std::move(out));
+  if (current_selector_mode_.load() != mode) return;
+  pub_turn_indicators_cmd_->publish(*msg);
 }
 
 void ExternalCmdSelector::on_hazard_lights_cmd(
   const AUTOWARE_MESSAGE_CONST_SHARED_PTR(HazardLightsCommand) & msg, uint8_t mode)
 {
-  {
-    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
-    if (current_selector_mode_.data != mode) return;
-  }
-  auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_hazard_lights_cmd_);
-  *out = *msg;
-  pub_hazard_lights_cmd_->publish(std::move(out));
+  if (current_selector_mode_.load() != mode) return;
+  pub_hazard_lights_cmd_->publish(*msg);
 }
 
 bool ExternalCmdSelector::on_select_external_command(
-  const CommandSourceSelect::Request::SharedPtr req,
-  const CommandSourceSelect::Response::SharedPtr res)
+  const AUTOWARE_SERVER_REQUEST_PTR(CommandSourceSelect) & req,
+  const AUTOWARE_SERVER_RESPONSE_PTR(CommandSourceSelect) & res)
 {
-  {
-    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
-    current_selector_mode_.data = req->mode.data;
-  }
+  current_selector_mode_.store(req->mode.data);
   res->success = true;
   res->message = "Success.";
   return true;
@@ -226,12 +193,9 @@ bool ExternalCmdSelector::on_select_external_command(
 
 void ExternalCmdSelector::on_timer()
 {
-  auto out = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(pub_current_selector_mode_);
-  {
-    std::lock_guard<std::mutex> lock(current_selector_mode_mutex_);
-    *out = current_selector_mode_;
-  }
-  pub_current_selector_mode_->publish(std::move(out));
+  CommandSourceMode mode;
+  mode.data = current_selector_mode_.load();
+  pub_current_selector_mode_->publish(mode);
   updater_.force_update();
 }
 

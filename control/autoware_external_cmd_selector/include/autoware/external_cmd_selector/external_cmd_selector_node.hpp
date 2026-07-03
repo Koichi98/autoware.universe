@@ -17,7 +17,6 @@
 
 #include <autoware/agnocast_wrapper/diagnostic_updater.hpp>
 #include <autoware/agnocast_wrapper/node.hpp>
-
 #include <diagnostic_updater/diagnostic_updater.hpp>
 #include <diagnostic_updater/update_functions.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -31,8 +30,8 @@
 #include <tier4_control_msgs/msg/external_command_selector_mode.hpp>
 #include <tier4_control_msgs/srv/external_command_select.hpp>
 
+#include <atomic>
 #include <memory>
-#include <mutex>
 
 namespace autoware::external_cmd_selector
 {
@@ -88,7 +87,8 @@ private:
     return std::bind(func, this, std::placeholders::_1, mode);
   }
   void on_pedals_cmd(const AUTOWARE_MESSAGE_CONST_SHARED_PTR(PedalsCommand) & msg, uint8_t mode);
-  void on_steering_cmd(const AUTOWARE_MESSAGE_CONST_SHARED_PTR(SteeringCommand) & msg, uint8_t mode);
+  void on_steering_cmd(
+    const AUTOWARE_MESSAGE_CONST_SHARED_PTR(SteeringCommand) & msg, uint8_t mode);
   void on_heartbeat(const AUTOWARE_MESSAGE_CONST_SHARED_PTR(OperatorHeartbeat) & msg, uint8_t mode);
   void on_gear_cmd(const AUTOWARE_MESSAGE_CONST_SHARED_PTR(GearCommand) & msg, uint8_t mode);
   void on_turn_indicators_cmd(
@@ -98,11 +98,10 @@ private:
 
   // Service
   AUTOWARE_SERVICE_PTR(CommandSourceSelect) srv_select_external_command_;
-  CommandSourceMode current_selector_mode_;
-  std::mutex current_selector_mode_mutex_;
+  std::atomic<uint8_t> current_selector_mode_;
   bool on_select_external_command(
-    const CommandSourceSelect::Request::SharedPtr req,
-    const CommandSourceSelect::Response::SharedPtr res);
+    const AUTOWARE_SERVER_REQUEST_PTR(CommandSourceSelect) & req,
+    const AUTOWARE_SERVER_RESPONSE_PTR(CommandSourceSelect) & res);
 
   // Timer
   AUTOWARE_TIMER_PTR timer_;
