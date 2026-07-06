@@ -17,10 +17,14 @@
 
 #include <autoware/component_interface_utils/rclcpp/exceptions.hpp>
 #include <autoware/component_interface_utils/rclcpp/interface.hpp>
+#include <autoware/component_interface_utils/rclcpp/service_detail.hpp>
+
 #include <rclcpp/node.hpp>
 
 #include <tier4_system_msgs/msg/service_log.hpp>
 
+#include <chrono>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -28,29 +32,34 @@
 namespace autoware::component_interface_utils
 {
 
-/// The wrapper class of rclcpp::Client for logging.
+/// The wrapper class of the underlying service client for logging.
+///
+/// The node-facing API (call / async_send_request / service_is_ready) is expressed in plain
+/// std::shared_ptr<Request|Response>, identical in both builds, so node code is unchanged. Under
+/// USE_AGNOCAST_ENABLED the request/response are bridged to/from the agnocast message_ptr API by
+/// service_detail::ClientBackend.
 template <class SpecT>
 class Client
 {
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(Client)
   using SpecType = SpecT;
-  using WrapType = rclcpp::Client<typename SpecT::Service>;
   using ServiceLog = tier4_system_msgs::msg::ServiceLog;
+
+  using SharedRequest = std::shared_ptr<typename SpecT::Service::Request>;
+  using SharedResponse = std::shared_ptr<typename SpecT::Service::Response>;
+  using SharedFuture = std::shared_future<SharedResponse>;
 
   /// Constructor.
   Client(NodeInterface::SharedPtr interface, rclcpp::CallbackGroup::SharedPtr group)
-  : interface_(interface)
+  : interface_(interface), backend_(interface->node, SpecT::name, group)
   {
-    client_ = interface->node->create_client<typename SpecT::Service>(
-      SpecT::name, rmw_qos_profile_services_default, group);
   }
 
   /// Send request.
-  typename WrapType::SharedResponse call(
-    const typename WrapType::SharedRequest request, std::optional<double> timeout = std::nullopt)
+  SharedResponse call(const SharedRequest request, std::optional<double> timeout = std::nullopt)
   {
-    if (!client_->service_is_ready()) {
+    if (!backend_.service_is_ready()) {
       interface_->log(ServiceLog::ERROR_UNREADY, SpecType::name);
       throw ServiceUnready(SpecT::name);
     }
@@ -67,32 +76,31 @@ public:
   }
 
   /// Send request.
-  typename WrapType::SharedFuture async_send_request(typename WrapType::SharedRequest request)
+  SharedFuture async_send_request(SharedRequest request)
   {
-    return this->async_send_request(request, [](typename WrapType::SharedFuture) {});
+    return this->async_send_request(request, [](SharedFuture) {});
   }
 
   /// Send request.
   template <class CallbackT>
-  typename WrapType::SharedFuture async_send_request(
-    typename WrapType::SharedRequest request, CallbackT && callback)
+  SharedFuture async_send_request(SharedRequest request, CallbackT && callback)
   {
-    const auto wrapped = [this, callback](typename WrapType::SharedFuture future) {
+    const auto wrapped = [this, callback](SharedFuture future) {
       interface_->log(ServiceLog::CLIENT_RESPONSE, SpecType::name, to_yaml(*future.get()));
       callback(future);
     };
 
     interface_->log(ServiceLog::CLIENT_REQUEST, SpecType::name, to_yaml(*request));
-    return client_->async_send_request(request, wrapped).future;
+    return backend_.async_send_request(request, wrapped);
   }
 
   /// Check if the service is ready.
-  bool service_is_ready() const { return client_->service_is_ready(); }
+  bool service_is_ready() const { return backend_.service_is_ready(); }
 
 private:
   RCLCPP_DISABLE_COPY(Client)
-  typename WrapType::SharedPtr client_;
   NodeInterface::SharedPtr interface_;
+  service_detail::ClientBackend<SpecT> backend_;
 };
 
 }  // namespace autoware::component_interface_utils

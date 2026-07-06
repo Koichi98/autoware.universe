@@ -4,6 +4,15 @@ project(autoware_component_interface_utils)
 find_package(autoware_cmake REQUIRED)
 autoware_package()
 
+# This package is header-only. When Agnocast is enabled, the interface proxies are compiled against
+# autoware::agnocast_wrapper::Node in consumers; export the dependency so its headers and the
+# USE_AGNOCAST_ENABLED compile definition reach them. When disabled, the plain rclcpp::Node path is
+# used and nothing extra is needed (full backward compatibility).
+if(DEFINED ENV{ENABLE_AGNOCAST} AND "$ENV{ENABLE_AGNOCAST}" STREQUAL "1")
+  find_package(autoware_agnocast_wrapper REQUIRED)
+  ament_export_dependencies(autoware_agnocast_wrapper)
+endif()
+
 include_directories(
   include
   SYSTEM

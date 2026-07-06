@@ -15,6 +15,8 @@
 #ifndef AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__INTERFACE_HPP_
 #define AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__INTERFACE_HPP_
 
+#include <autoware/component_interface_utils/node_type.hpp>
+
 #include <rclcpp/rclcpp.hpp>
 
 #include <tier4_system_msgs/msg/service_log.hpp>
@@ -26,12 +28,19 @@
 namespace autoware::component_interface_utils
 {
 
+/// Logging helper and node accessor shared by the interface proxies.
+///
+/// Holds a type-erased pointer to the owning node (either rclcpp::Node or
+/// autoware::agnocast_wrapper::Node) so the same proxies compile against both. The members it
+/// touches (create_publisher / now / get_logger / get_name / get_namespace) exist on both node
+/// types, so the only difference is the stored pointer type, captured by NodeType (see
+/// node_type.hpp).
 struct NodeInterface
 {
   using SharedPtr = std::shared_ptr<NodeInterface>;
   using ServiceLog = tier4_system_msgs::msg::ServiceLog;
 
-  explicit NodeInterface(rclcpp::Node * node)
+  explicit NodeInterface(NodeType * node)
   {
     this->node = node;
     this->logger = node->create_publisher<ServiceLog>("/service_log", 10);
@@ -63,8 +72,8 @@ struct NodeInterface
     logger->publish(msg);
   }
 
-  rclcpp::Node * node;
-  rclcpp::Publisher<ServiceLog>::SharedPtr logger;
+  NodeType * node;
+  ServiceLogPublisher logger;
   std::string node_name;
 };
 

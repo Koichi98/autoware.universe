@@ -15,22 +15,27 @@
 #ifndef AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__TOPIC_PUBLISHER_HPP_
 #define AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__TOPIC_PUBLISHER_HPP_
 
+#include <autoware/component_interface_utils/node_type.hpp>
+
 #include <rclcpp/publisher.hpp>
 
 namespace autoware::component_interface_utils
 {
 
-/// The wrapper class of rclcpp::Publisher. This is for future use and no functionality now.
+/// The wrapper class of the underlying publisher. This is for future use and no functionality now.
+///
+/// The underlying publisher is rclcpp::Publisher or agnocast_wrapper::Publisher depending on the
+/// build (see node_type.hpp). Both expose publish(const Message &), so the body is identical.
 template <class SpecT>
 class Publisher
 {
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(Publisher)
   using SpecType = SpecT;
-  using WrapType = rclcpp::Publisher<typename SpecT::Message>;
+  using WrapPtr = PublisherPtr<typename SpecT::Message>;
 
   /// Constructor.
-  explicit Publisher(typename WrapType::SharedPtr publisher)
+  explicit Publisher(WrapPtr publisher)
   {
     publisher_ = publisher;  // to keep the reference count
   }
@@ -40,7 +45,7 @@ public:
 
 private:
   RCLCPP_DISABLE_COPY(Publisher)
-  typename WrapType::SharedPtr publisher_;
+  WrapPtr publisher_;
 };
 
 }  // namespace autoware::component_interface_utils

@@ -15,41 +15,40 @@
 #ifndef AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__TOPIC_SUBSCRIPTION_HPP_
 #define AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__TOPIC_SUBSCRIPTION_HPP_
 
+#include <autoware/component_interface_utils/rclcpp/subscription_callback.hpp>
+
 #include <rclcpp/subscription.hpp>
 
+#include <functional>
 #include <memory>
+#include <utility>
 
 namespace autoware::component_interface_utils
 {
 
-/// The wrapper class of rclcpp::Subscription. This is for future use and no functionality now.
+/// The wrapper class of the underlying subscription. This is for future use and no functionality
+/// now.
+///
+/// Holds whatever create_subscription_impl produced: a callback subscription or, for the polling
+/// (nullptr-callback) case, a polling subscriber. take() / take_and_update() are only meaningful
+/// for the polling case and are routed through take_polling_message(), which is specialized per
+/// build (rclcpp take()-loop vs agnocast PollingSubscriber::take_data()).
 template <class SpecT>
 class Subscription
 {
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(Subscription)
   using SpecType = SpecT;
-  using WrapType = rclcpp::Subscription<typename SpecT::Message>;
 
-  /// Constructor.
-  explicit Subscription(typename WrapType::SharedPtr subscription)
+  /// Constructor. Accepts any underlying subscription pointer (callback or polling).
+  template <class SubPtrT>
+  explicit Subscription(SubPtrT subscription)
+  : take_impl_([subscription]() { return take_polling_message<SpecT>(subscription); }),
+    keep_alive_(std::move(subscription))  // to keep the reference count
   {
-    subscription_ = subscription;  // to keep the reference count
   }
 
-  typename SpecType::Message::ConstSharedPtr take()
-  {
-    rclcpp::MessageInfo info;
-    auto data = std::make_shared<typename SpecType::Message>();
-    bool flag = false;
-    for (size_t i = 0; i < subscription_->get_actual_qos().depth(); ++i) {
-      if (!subscription_->take(*data, info)) {
-        break;
-      }
-      flag = true;  // Whether there is at least one data.
-    }
-    return flag ? data : nullptr;
-  }
+  typename SpecType::Message::ConstSharedPtr take() { return take_impl_(); }
 
   bool take_and_update(typename SpecType::Message::ConstSharedPtr & ptr)
   {
@@ -73,7 +72,8 @@ public:
 
 private:
   RCLCPP_DISABLE_COPY(Subscription)
-  typename WrapType::SharedPtr subscription_;
+  std::function<typename SpecType::Message::ConstSharedPtr()> take_impl_;
+  std::shared_ptr<void> keep_alive_;
 };
 
 }  // namespace autoware::component_interface_utils

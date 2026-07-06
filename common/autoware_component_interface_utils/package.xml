@@ -17,6 +17,9 @@
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
 
+  <!-- Header-only dependency, only needed when building with Agnocast enabled. -->
+  <depend condition="$ENABLE_AGNOCAST == 1">autoware_agnocast_wrapper</depend>
+
   <test_depend>ament_cmake_ros</test_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>autoware_lint_common</test_depend>

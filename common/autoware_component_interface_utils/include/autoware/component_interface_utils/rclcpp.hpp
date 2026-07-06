@@ -47,8 +47,9 @@ private:
     const typename SharedPtrT::element_type::SpecType::Service::Response::SharedPtr);
 
 public:
-  /// Constructor.
-  explicit NodeAdaptor(rclcpp::Node * node) { interface_ = std::make_shared<NodeInterface>(node); }
+  /// Constructor. NodeType is rclcpp::Node or agnocast_wrapper::Node depending on the build
+  /// (see node_type.hpp); node code passes `this` and it resolves to the matching type.
+  explicit NodeAdaptor(NodeType * node) { interface_ = std::make_shared<NodeInterface>(node); }
 
   /// Create a client wrapper for logging.
   template <class SharedPtrT>

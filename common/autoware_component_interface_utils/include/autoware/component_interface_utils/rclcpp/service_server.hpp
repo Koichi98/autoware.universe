@@ -17,16 +17,23 @@
 
 #include <autoware/component_interface_utils/rclcpp/exceptions.hpp>
 #include <autoware/component_interface_utils/rclcpp/interface.hpp>
+#include <autoware/component_interface_utils/rclcpp/service_detail.hpp>
+
 #include <rclcpp/node.hpp>
 
 #include <tier4_system_msgs/msg/service_log.hpp>
 
-#include <string>
+#include <memory>
+#include <utility>
 
 namespace autoware::component_interface_utils
 {
 
-/// The wrapper class of rclcpp::Service for logging.
+/// The wrapper class of the underlying service server for logging.
+///
+/// The node-facing callback takes std::shared_ptr<Request|Response>, identical in both builds.
+/// service_detail::ServiceBackend handles the actual service creation and, under
+/// USE_AGNOCAST_ENABLED, the message_ptr bridging.
 template <class SpecT>
 class Service
 {
@@ -48,27 +55,26 @@ private:
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(Service)
   using SpecType = SpecT;
-  using WrapType = rclcpp::Service<typename SpecT::Service>;
   using ServiceLog = tier4_system_msgs::msg::ServiceLog;
+
+  using SharedRequest = service_detail::SharedRequest<SpecT>;
+  using SharedResponse = service_detail::SharedResponse<SpecT>;
 
   /// Constructor.
   template <class CallbackT>
   Service(
     NodeInterface::SharedPtr interface, CallbackT && callback,
     rclcpp::CallbackGroup::SharedPtr group)
-  : interface_(interface)
+  : interface_(interface),
+    backend_(interface->node, SpecT::name, wrap(std::forward<CallbackT>(callback)), group)
   {
-    service_ = interface_->node->create_service<typename SpecT::Service>(
-      SpecT::name, wrap(callback), rmw_qos_profile_services_default, group);
   }
 
   /// Create a service callback with logging added.
   template <class CallbackT>
-  typename WrapType::CallbackType wrap(CallbackT && callback)
+  service_detail::ServerCallback<SpecT> wrap(CallbackT && callback)
   {
-    auto wrapped = [this, callback](
-                     typename SpecT::Service::Request::SharedPtr request,
-                     typename SpecT::Service::Response::SharedPtr response) {
+    auto wrapped = [this, callback](SharedRequest request, SharedResponse response) {
       // If the response has status, convert it from the exception.
       interface_->log(ServiceLog::SERVER_REQUEST, SpecType::name, to_yaml(*request));
       if constexpr (!has_status_type<typename SpecT::Service::Response>::value) {
@@ -87,8 +93,8 @@ public:
 
 private:
   RCLCPP_DISABLE_COPY(Service)
-  typename WrapType::SharedPtr service_;
   NodeInterface::SharedPtr interface_;
+  service_detail::ServiceBackend<SpecT> backend_;
 };
 
 }  // namespace autoware::component_interface_utils
