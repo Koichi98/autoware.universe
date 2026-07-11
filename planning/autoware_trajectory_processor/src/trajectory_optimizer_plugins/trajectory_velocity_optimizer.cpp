@@ -30,16 +30,24 @@ namespace autoware::trajectory_optimizer::plugin
 {
 
 void TrajectoryVelocityOptimizer::initialize(
-  const std::string & name, rclcpp::Node * node_ptr,
+  const std::string & name, autoware::agnocast_wrapper::Node * node_ptr,
   const std::shared_ptr<autoware_utils_debug::TimeKeeper> & time_keeper)
 {
   TrajectoryOptimizerPluginBase::initialize(name, node_ptr, time_keeper);
 
   set_up_params();
 
+  // When Agnocast is enabled, the wrapper node provides a member create_polling_subscriber()
+  // that also supports the AgnocastOnly case (no underlying rclcpp::Node). When disabled, the
+  // wrapper is a plain rclcpp::Node, so fall back to InterProcessPollingSubscriber.
+#ifdef USE_AGNOCAST_ENABLED
+  sub_planning_velocity_ = node_ptr->create_polling_subscriber<VelocityLimit>(
+    "~/input/external_velocity_limit_mps", rclcpp::QoS{1});
+#else
   sub_planning_velocity_ =
-    std::make_shared<autoware_utils_rclcpp::InterProcessPollingSubscriber<VelocityLimit>>(
+    autoware_utils_rclcpp::InterProcessPollingSubscriber<VelocityLimit>::create_subscription(
       node_ptr, "~/input/external_velocity_limit_mps", rclcpp::QoS{1});
+#endif
 
   pub_velocity_limit_ = node_ptr->create_publisher<VelocityLimit>(
     "~/output/current_velocity_limit_mps", rclcpp::QoS{1}.transient_local());

@@ -20,6 +20,7 @@
 #include "autoware/trajectory_optimizer/trajectory_optimizer_plugins/plugin_utils/continuous_jerk_smoother.hpp"
 #include "autoware/trajectory_optimizer/trajectory_optimizer_plugins/trajectory_optimizer_plugin_base.hpp"
 
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware_utils/system/time_keeper.hpp>
 #include <autoware_utils_rclcpp/polling_subscriber.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -65,7 +66,7 @@ public:
   ~TrajectoryVelocityOptimizer() = default;
 
   void initialize(
-    const std::string & name, rclcpp::Node * node_ptr,
+    const std::string & name, autoware::agnocast_wrapper::Node * node_ptr,
     const std::shared_ptr<autoware_utils_debug::TimeKeeper> & time_keeper) override;
   void optimize_trajectory(
     TrajectoryPoints & traj_points, const TrajectoryOptimizerParams & params,
@@ -77,9 +78,8 @@ public:
 private:
   std::shared_ptr<ContinuousJerkSmoother> continuous_jerk_smoother_{nullptr};
   TrajectoryVelocityOptimizerParams velocity_params_;
-  std::shared_ptr<autoware_utils_rclcpp::InterProcessPollingSubscriber<VelocityLimit>>
-    sub_planning_velocity_;
-  rclcpp::Publisher<VelocityLimit>::SharedPtr pub_velocity_limit_;
+  AUTOWARE_POLLING_SUBSCRIBER_PTR(VelocityLimit) sub_planning_velocity_;
+  AUTOWARE_PUBLISHER_PTR(VelocityLimit) pub_velocity_limit_;
 };
 }  // namespace autoware::trajectory_optimizer::plugin
 

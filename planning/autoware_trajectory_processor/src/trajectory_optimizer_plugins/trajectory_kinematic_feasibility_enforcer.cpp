@@ -178,7 +178,9 @@ void TrajectoryKinematicFeasibilityEnforcer::set_up_params()
   using autoware_utils_rclcpp::get_or_declare_parameter;
 
   // Get vehicle info
-  vehicle_info_ = autoware::vehicle_info_utils::VehicleInfoUtils(*node_ptr).getVehicleInfo();
+  vehicle_info_ =
+    autoware::vehicle_info_utils::BasicVehicleInfoUtils<autoware::agnocast_wrapper::Node>(*node_ptr)
+      .getVehicleInfo();
 
   // Plugin-specific parameter
   feasibility_params_.max_yaw_rate_rad_s = get_or_declare_parameter<double>(
