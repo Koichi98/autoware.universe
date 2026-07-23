@@ -14,10 +14,11 @@
 
 #include "diagnostics.hpp"
 
-#include <autoware/qos_utils/qos_compatibility.hpp>
+#include "utils/agnocast_compat.hpp"
 
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
 namespace autoware::default_adapi
 {
@@ -33,15 +34,17 @@ DiagnosticsNode::DiagnosticsNode(const rclcpp::NodeOptions & options) : Node("di
   pub_status_ = create_publisher<ExternalGraphStatus>("/api/system/diagnostics/status", qos_status);
 
   sub_struct_ = create_subscription<InternalGraphStruct>(
-    "/diagnostics_graph/struct", qos_struct, std::bind(&DiagnosticsNode::on_struct, this, _1));
+    "/diagnostics_graph/struct", qos_struct,
+    [this](const InternalGraphStruct & msg) { on_struct(msg); });
   sub_status_ = create_subscription<InternalGraphStatus>(
-    "/diagnostics_graph/status", qos_status, std::bind(&DiagnosticsNode::on_status, this, _1));
+    "/diagnostics_graph/status", qos_status,
+    [this](const InternalGraphStatus & msg) { on_status(msg); });
 
   group_cli_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  cli_reset_ = create_client<InternalReset>(
-    "/diagnostics_graph/reset", AUTOWARE_DEFAULT_SERVICES_QOS_PROFILE(), group_cli_);
-  srv_reset_ = create_service<ExternalReset>(
-    "/api/system/diagnostics/reset", std::bind(&DiagnosticsNode::on_reset, this, _1, _2));
+  cli_reset_ =
+    create_client<InternalReset>("/diagnostics_graph/reset", rclcpp::ServicesQoS(), group_cli_);
+  srv_reset_ = agnocast_compat::create_service<ExternalReset>(
+    this, "/api/system/diagnostics/reset", std::bind(&DiagnosticsNode::on_reset, this, _1, _2));
 
   sub_mrm_state_ = create_subscription<ExternalMrmState>(
     "/api/fail_safe/mrm_state", rclcpp::QoS(1).transient_local(),
@@ -137,8 +140,8 @@ void DiagnosticsNode::on_reset(
     return;
   }
 
-  auto internal_req = std::make_shared<InternalReset::Request>();
-  auto future = cli_reset_->async_send_request(internal_req);
+  auto internal_req = cli_reset_->allocate_output_service_request();
+  auto future = cli_reset_->async_send_request(std::move(internal_req)).future;
   if (future.wait_for(std::chrono::seconds(1)) != std::future_status::ready) {
     res->status.success = false;
     res->status.code = ResponseStatus::SERVICE_TIMEOUT;

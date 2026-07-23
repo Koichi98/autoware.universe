@@ -28,7 +28,7 @@
 namespace autoware::default_adapi
 {
 
-class FailSafeNode : public rclcpp::Node
+class FailSafeNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit FailSafeNode(const rclcpp::NodeOptions & options);

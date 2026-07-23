@@ -14,6 +14,8 @@
 
 #include "autoware_state.hpp"
 
+#include "../utils/agnocast_compat.hpp"
+
 #include <string>
 #include <vector>
 
@@ -30,24 +32,35 @@ AutowareStateNode::AutowareStateNode(const rclcpp::NodeOptions & options)
   for (size_t i = 0; i < module_names.size(); ++i) {
     const auto name = "/system/component_state_monitor/component/launch/" + module_names[i];
     const auto qos = rclcpp::QoS(1).transient_local();
-    const auto callback = [this, i](const ModeChangeAvailable::ConstSharedPtr msg) {
-      component_states_[i] = msg->available;
+    const auto callback = [this, i](const ModeChangeAvailable & msg) {
+      component_states_[i] = msg.available;
     };
     sub_component_states_.push_back(create_subscription<ModeChangeAvailable>(name, qos, callback));
   }
 
   pub_autoware_state_ = create_publisher<AutowareState>("/autoware/state", 1);
-  srv_autoware_shutdown_ = create_service<std_srvs::srv::Trigger>(
-    "/autoware/shutdown",
+  srv_autoware_shutdown_ = agnocast_compat::create_service<std_srvs::srv::Trigger>(
+    this, "/autoware/shutdown",
     std::bind(&AutowareStateNode::on_shutdown, this, std::placeholders::_1, std::placeholders::_2));
 
-  const auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
-  adaptor.init_sub(sub_localization_, nullptr);
-  adaptor.init_sub(sub_routing_, nullptr);
-  adaptor.init_sub(sub_operation_mode_, nullptr);
+  namespace polling = autoware::agnocast_wrapper::polling;
+  using autoware::component_interface_utils::get_qos;
+  sub_localization_ = polling::create_polling_subscriber<
+    autoware::adapi_specs::localization::InitializationState::Message>(
+    this, autoware::adapi_specs::localization::InitializationState::name,
+    get_qos<autoware::adapi_specs::localization::InitializationState>());
+  sub_routing_ =
+    polling::create_polling_subscriber<autoware::adapi_specs::routing::RouteState::Message>(
+      this, autoware::adapi_specs::routing::RouteState::name,
+      get_qos<autoware::adapi_specs::routing::RouteState>());
+  sub_operation_mode_ = polling::create_polling_subscriber<
+    autoware::adapi_specs::operation_mode::OperationModeState::Message>(
+    this, autoware::adapi_specs::operation_mode::OperationModeState::name,
+    get_qos<autoware::adapi_specs::operation_mode::OperationModeState>());
 
   const auto rate = rclcpp::Rate(declare_parameter<double>("update_rate"));
-  timer_ = rclcpp::create_timer(this, get_clock(), rate.period(), [this]() { on_timer(); });
+  timer_ = autoware::agnocast_wrapper::create_timer(
+    this, get_clock(), rate.period(), [this]() { on_timer(); });
 
   component_states_.resize(module_names.size());
   launch_state_ = LaunchState::Initializing;
@@ -104,9 +117,9 @@ void AutowareStateNode::on_timer()
   };
 
   // Update each state
-  sub_localization_->take_and_update(localization_state_);
-  sub_routing_->take_and_update(routing_state_);
-  sub_operation_mode_->take_and_update(operation_mode_state_);
+  if (const auto msg = sub_localization_->take_data()) localization_state_ = *msg;
+  if (const auto msg = sub_routing_->take_data()) routing_state_ = *msg;
+  if (const auto msg = sub_operation_mode_->take_data()) operation_mode_state_ = *msg;
 
   // Update launch state.
   if (launch_state_ == LaunchState::Initializing) {

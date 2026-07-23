@@ -26,7 +26,7 @@ using ServiceResponse = autoware_adapi_v1_msgs::srv::ChangeOperationMode::Respon
 OperationModeNode::OperationModeNode(const rclcpp::NodeOptions & options)
 : Node("operation_mode", options)
 {
-  const auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
+  const auto adaptor = autoware::component_interface_utils::NodeAdaptor<Node>(this);
   group_cli_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   adaptor.init_sub(sub_state_, this, &OperationModeNode::on_state);
   adaptor.init_pub(pub_state_);
@@ -41,15 +41,15 @@ OperationModeNode::OperationModeNode(const rclcpp::NodeOptions & options)
 
   const auto name = "/system/operation_mode/availability";
   const auto qos = rclcpp::QoS(1);
-  const auto callback = [this](const OperationModeAvailability::ConstSharedPtr msg) {
-    mode_available_[OperationModeState::Message::STOP] = msg->stop;
-    mode_available_[OperationModeState::Message::AUTONOMOUS] = msg->autonomous;
-    mode_available_[OperationModeState::Message::LOCAL] = msg->local;
-    mode_available_[OperationModeState::Message::REMOTE] = msg->remote;
+  const auto callback = [this](const OperationModeAvailability & msg) {
+    mode_available_[OperationModeState::Message::STOP] = msg.stop;
+    mode_available_[OperationModeState::Message::AUTONOMOUS] = msg.autonomous;
+    mode_available_[OperationModeState::Message::LOCAL] = msg.local;
+    mode_available_[OperationModeState::Message::REMOTE] = msg.remote;
   };
   sub_availability_ = create_subscription<OperationModeAvailability>(name, qos, callback);
 
-  timer_ = rclcpp::create_timer(
+  timer_ = autoware::agnocast_wrapper::create_timer(
     this, get_clock(), rclcpp::Rate(5.0).period(), std::bind(&OperationModeNode::on_timer, this));
 
   curr_state_.mode = OperationModeState::Message::UNKNOWN;

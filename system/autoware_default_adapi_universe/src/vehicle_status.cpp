@@ -66,21 +66,35 @@ std::unordered_map<uint8_t, uint8_t> hazard_light_type_ = {
 VehicleStatusNode::VehicleStatusNode(const rclcpp::NodeOptions & options)
 : Node("vehicle_status", options)
 {
-  const auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
+  const auto adaptor = autoware::component_interface_utils::NodeAdaptor<Node>(this);
   group_cli_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   adaptor.init_pub(pub_kinematics_);
   adaptor.init_pub(pub_status_);
-  adaptor.init_sub(sub_kinematic_state_, nullptr);
-  adaptor.init_sub(sub_acceleration_, nullptr);
-  adaptor.init_sub(sub_steering_, nullptr);
-  adaptor.init_sub(sub_gear_state_, nullptr);
-  adaptor.init_sub(sub_turn_indicator_, nullptr);
-  adaptor.init_sub(sub_map_projector_info_, nullptr);
-  adaptor.init_sub(sub_hazard_light_, nullptr);
-  adaptor.init_sub(sub_energy_level_, nullptr);
+
+  namespace cis = autoware::component_interface_specs_universe;
+  namespace poll = autoware::agnocast_wrapper::polling;
+  using autoware::component_interface_utils::get_qos;
+  sub_kinematic_state_ =
+    poll::create_polling_subscriber<cis::localization::KinematicState::Message>(
+      this, cis::localization::KinematicState::name, get_qos<cis::localization::KinematicState>());
+  sub_acceleration_ = poll::create_polling_subscriber<cis::localization::Acceleration::Message>(
+    this, cis::localization::Acceleration::name, get_qos<cis::localization::Acceleration>());
+  sub_steering_ = poll::create_polling_subscriber<cis::vehicle::SteeringStatus::Message>(
+    this, cis::vehicle::SteeringStatus::name, get_qos<cis::vehicle::SteeringStatus>());
+  sub_gear_state_ = poll::create_polling_subscriber<cis::vehicle::GearStatus::Message>(
+    this, cis::vehicle::GearStatus::name, get_qos<cis::vehicle::GearStatus>());
+  sub_turn_indicator_ = poll::create_polling_subscriber<cis::vehicle::TurnIndicatorStatus::Message>(
+    this, cis::vehicle::TurnIndicatorStatus::name, get_qos<cis::vehicle::TurnIndicatorStatus>());
+  sub_map_projector_info_ = poll::create_polling_subscriber<cis::map::MapProjectorInfo::Message>(
+    this, cis::map::MapProjectorInfo::name, get_qos<cis::map::MapProjectorInfo>());
+  sub_hazard_light_ = poll::create_polling_subscriber<cis::vehicle::HazardLightStatus::Message>(
+    this, cis::vehicle::HazardLightStatus::name, get_qos<cis::vehicle::HazardLightStatus>());
+  sub_energy_level_ = poll::create_polling_subscriber<cis::vehicle::EnergyStatus::Message>(
+    this, cis::vehicle::EnergyStatus::name, get_qos<cis::vehicle::EnergyStatus>());
 
   const auto rate = rclcpp::Rate(10);
-  timer_ = rclcpp::create_timer(this, get_clock(), rate.period(), [this]() { on_timer(); });
+  timer_ = autoware::agnocast_wrapper::create_timer(
+    this, get_clock(), rate.period(), [this]() { on_timer(); });
 }
 
 uint8_t VehicleStatusNode::mapping(
@@ -146,14 +160,14 @@ void VehicleStatusNode::publish_status()
 
 void VehicleStatusNode::on_timer()
 {
-  sub_kinematic_state_->take_and_update(kinematic_state_msgs_);
-  sub_acceleration_->take_and_update(acceleration_msgs_);
-  sub_steering_->take_and_update(steering_status_msgs_);
-  sub_gear_state_->take_and_update(gear_status_msgs_);
-  sub_turn_indicator_->take_and_update(turn_indicator_status_msgs_);
-  sub_hazard_light_->take_and_update(hazard_light_status_msgs_);
-  sub_energy_level_->take_and_update(energy_status_msgs_);
-  sub_map_projector_info_->take_and_update(map_projector_info_);
+  if (const auto msg = sub_kinematic_state_->take_data()) kinematic_state_msgs_ = msg;
+  if (const auto msg = sub_acceleration_->take_data()) acceleration_msgs_ = msg;
+  if (const auto msg = sub_steering_->take_data()) steering_status_msgs_ = msg;
+  if (const auto msg = sub_gear_state_->take_data()) gear_status_msgs_ = msg;
+  if (const auto msg = sub_turn_indicator_->take_data()) turn_indicator_status_msgs_ = msg;
+  if (const auto msg = sub_hazard_light_->take_data()) hazard_light_status_msgs_ = msg;
+  if (const auto msg = sub_energy_level_->take_data()) energy_status_msgs_ = msg;
+  if (const auto msg = sub_map_projector_info_->take_data()) map_projector_info_ = msg;
 
   publish_kinematics();
   publish_status();

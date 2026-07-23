@@ -33,7 +33,7 @@
 namespace autoware::default_adapi
 {
 
-class VehicleStatusNode : public rclcpp::Node
+class VehicleStatusNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit VehicleStatusNode(const rclcpp::NodeOptions & options);
@@ -42,17 +42,17 @@ private:
   rclcpp::CallbackGroup::SharedPtr group_cli_;
   Pub<autoware::adapi_specs::vehicle::VehicleKinematics> pub_kinematics_;
   Pub<autoware::adapi_specs::vehicle::VehicleStatus> pub_status_;
-  Sub<autoware::component_interface_specs_universe::localization::KinematicState>
+  Poll<autoware::component_interface_specs_universe::localization::KinematicState>
     sub_kinematic_state_;
-  Sub<autoware::component_interface_specs_universe::localization::Acceleration> sub_acceleration_;
-  Sub<autoware::component_interface_specs_universe::vehicle::SteeringStatus> sub_steering_;
-  Sub<autoware::component_interface_specs_universe::vehicle::GearStatus> sub_gear_state_;
-  Sub<autoware::component_interface_specs_universe::vehicle::TurnIndicatorStatus>
+  Poll<autoware::component_interface_specs_universe::localization::Acceleration> sub_acceleration_;
+  Poll<autoware::component_interface_specs_universe::vehicle::SteeringStatus> sub_steering_;
+  Poll<autoware::component_interface_specs_universe::vehicle::GearStatus> sub_gear_state_;
+  Poll<autoware::component_interface_specs_universe::vehicle::TurnIndicatorStatus>
     sub_turn_indicator_;
-  Sub<autoware::component_interface_specs_universe::vehicle::HazardLightStatus> sub_hazard_light_;
-  Sub<autoware::component_interface_specs_universe::vehicle::EnergyStatus> sub_energy_level_;
-  Sub<autoware::component_interface_specs_universe::map::MapProjectorInfo> sub_map_projector_info_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  Poll<autoware::component_interface_specs_universe::vehicle::HazardLightStatus> sub_hazard_light_;
+  Poll<autoware::component_interface_specs_universe::vehicle::EnergyStatus> sub_energy_level_;
+  Poll<autoware::component_interface_specs_universe::map::MapProjectorInfo> sub_map_projector_info_;
+  AUTOWARE_TIMER_PTR timer_;
 
   autoware::component_interface_specs_universe::localization::KinematicState::Message::
     ConstSharedPtr kinematic_state_msgs_;

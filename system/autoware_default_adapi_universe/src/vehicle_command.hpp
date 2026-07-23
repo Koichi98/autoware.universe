@@ -26,7 +26,7 @@
 namespace autoware::default_adapi
 {
 
-class VehicleCommandNode : public rclcpp::Node
+class VehicleCommandNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit VehicleCommandNode(const rclcpp::NodeOptions & options);

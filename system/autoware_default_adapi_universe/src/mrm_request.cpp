@@ -23,7 +23,7 @@ MrmRequestNode::MrmRequestNode(const rclcpp::NodeOptions & options)
   diagnostics_.setHardwareID("none");
   diagnostics_.add("delegate", this, &MrmRequestNode::diagnose_delegate);
 
-  const auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
+  const auto adaptor = autoware::component_interface_utils::NodeAdaptor<Node>(this);
   adaptor.init_pub(pub_mrm_request_list_);
   adaptor.init_srv(srv_send_mrm_request_, this, &MrmRequestNode::on_send_mrm_request);
 

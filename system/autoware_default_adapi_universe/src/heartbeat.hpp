@@ -24,13 +24,13 @@
 namespace autoware::default_adapi
 {
 
-class HeartbeatNode : public rclcpp::Node
+class HeartbeatNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit HeartbeatNode(const rclcpp::NodeOptions & options);
 
 private:
-  rclcpp::TimerBase::SharedPtr timer_;
+  AUTOWARE_TIMER_PTR timer_;
   Pub<autoware::adapi_specs::system::Heartbeat> pub_;
   uint16_t sequence_ = 0;
 };

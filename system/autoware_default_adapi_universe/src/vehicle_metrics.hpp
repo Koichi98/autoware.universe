@@ -25,7 +25,7 @@
 namespace autoware::default_adapi
 {
 
-class VehicleMetricsNode : public rclcpp::Node
+class VehicleMetricsNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit VehicleMetricsNode(const rclcpp::NodeOptions & options);
@@ -35,7 +35,7 @@ private:
   using EnergyStatus = autoware::component_interface_specs_universe::vehicle::EnergyStatus;
   void on_timer();
 
-  rclcpp::TimerBase::SharedPtr timer_;
+  AUTOWARE_TIMER_PTR timer_;
   Pub<VehicleMetrics> pub_metrics_;
   Sub<EnergyStatus> sub_energy_;
   EnergyStatus::Message::ConstSharedPtr energy_;

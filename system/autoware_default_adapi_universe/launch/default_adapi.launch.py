@@ -18,20 +18,23 @@ import launch
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch.substitutions import PathJoinSubstitution
-from launch_ros.actions import ComposableNodeContainer
-from launch_ros.descriptions import ComposableNode
+from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
 
 
-def create_api_node(package_name, node_name, class_name):
+def create_api_node(package_name, node_name, executable):
+    # Each AD API node is now a standalone executable (registered via
+    # autoware_agnocast_wrapper_register_node) so it can switch between rclcpp and agnocast
+    # backends at runtime based on the ENABLE_AGNOCAST environment variable.
     fullname = pathlib.Path("adapi/node") / node_name
-    return ComposableNode(
+    return Node(
         namespace=str(fullname.parent),
         name=str(fullname.name),
         package=package_name,
-        plugin="autoware::default_adapi::" + class_name,
+        executable=executable,
         parameters=[ParameterFile(LaunchConfiguration("config"))],
+        ros_arguments=["--log-level", "adapi.node:=WARN"],
     )
 
 
@@ -42,34 +45,34 @@ def get_default_config():
 
 
 def generate_launch_description():
-    components = [
-        create_api_node("autoware_default_adapi", "interface", "InterfaceNode"),
-        create_api_node("autoware_default_adapi", "localization", "LocalizationNode"),
-        create_api_node("autoware_default_adapi", "routing", "RoutingNode"),
-        create_api_node("autoware_default_adapi_universe", "autoware_state", "AutowareStateNode"),
-        create_api_node("autoware_default_adapi_universe", "diagnostics", "DiagnosticsNode"),
-        create_api_node("autoware_default_adapi_universe", "fail_safe", "FailSafeNode"),
-        create_api_node("autoware_default_adapi_universe", "heartbeat", "HeartbeatNode"),
-        create_api_node("autoware_default_adapi_universe", "manual/local", "ManualControlNode"),
-        create_api_node("autoware_default_adapi_universe", "manual/remote", "ManualControlNode"),
-        create_api_node("autoware_default_adapi_universe", "motion", "MotionNode"),
-        create_api_node("autoware_default_adapi_universe", "mrm_request", "MrmRequestNode"),
-        create_api_node("autoware_default_adapi_universe", "operation_mode", "OperationModeNode"),
-        create_api_node("autoware_default_adapi_universe", "perception", "PerceptionNode"),
-        create_api_node("autoware_default_adapi_universe", "planning", "PlanningNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_status", "VehicleStatusNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_command", "VehicleCommandNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_metrics", "VehicleMetricsNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_info", "VehicleInfoNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_door", "VehicleDoorNode"),
+    nodes = [
+        create_api_node("autoware_default_adapi", "interface", "interface_node"),
+        create_api_node("autoware_default_adapi", "localization", "localization_node"),
+        create_api_node("autoware_default_adapi", "routing", "routing_node"),
+        create_api_node("autoware_default_adapi_universe", "autoware_state", "autoware_state_node"),
+        create_api_node("autoware_default_adapi_universe", "diagnostics", "diagnostics_node"),
+        create_api_node("autoware_default_adapi_universe", "fail_safe", "fail_safe_node"),
+        create_api_node("autoware_default_adapi_universe", "heartbeat", "heartbeat_node"),
+        create_api_node("autoware_default_adapi_universe", "manual/local", "manual_control_node"),
+        create_api_node("autoware_default_adapi_universe", "manual/remote", "manual_control_node"),
+        create_api_node("autoware_default_adapi_universe", "motion", "motion_node"),
+        create_api_node("autoware_default_adapi_universe", "mrm_request", "mrm_request_node"),
+        create_api_node(
+            "autoware_default_adapi_universe", "operation_mode", "operation_mode_node"
+        ),
+        create_api_node("autoware_default_adapi_universe", "perception", "perception_node"),
+        create_api_node("autoware_default_adapi_universe", "planning", "planning_node"),
+        create_api_node(
+            "autoware_default_adapi_universe", "vehicle_status", "vehicle_status_node"
+        ),
+        create_api_node(
+            "autoware_default_adapi_universe", "vehicle_command", "vehicle_command_node"
+        ),
+        create_api_node(
+            "autoware_default_adapi_universe", "vehicle_metrics", "vehicle_metrics_node"
+        ),
+        create_api_node("autoware_default_adapi_universe", "vehicle_info", "vehicle_info_node"),
+        create_api_node("autoware_default_adapi_universe", "vehicle_door", "vehicle_door_node"),
     ]
-    container = ComposableNodeContainer(
-        namespace="adapi",
-        name="container",
-        package="rclcpp_components",
-        executable="component_container_mt",
-        ros_arguments=["--log-level", "adapi.container:=WARN"],
-        composable_node_descriptions=components,
-    )
     argument = DeclareLaunchArgument("config", default_value=get_default_config())
-    return launch.LaunchDescription([argument, container])
+    return launch.LaunchDescription([argument, *nodes])

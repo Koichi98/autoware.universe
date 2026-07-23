@@ -14,6 +14,7 @@
 
 #include "manual_control.hpp"
 
+#include "utils/agnocast_compat.hpp"
 #include "utils/command_conversion.hpp"
 
 #include <memory>
@@ -24,7 +25,7 @@ namespace autoware::default_adapi
 
 ManualControlNode::ManualControlNode(const rclcpp::NodeOptions & options)
 : Node("manual_control", options),
-  diag_updater_(std::make_unique<diagnostic_updater::Updater>(this))
+  diag_updater_(std::make_unique<autoware::agnocast_wrapper::diagnostic_updater::Updater>(this))
 {
   // NOTE: Do not enable interfaces for velocity and acceleration mode in the constructor.
   //       Enable the comment out process and enable interface when the service is called.
@@ -69,14 +70,16 @@ ManualControlNode::ManualControlNode(const rclcpp::NodeOptions & options)
     "/external/" + mode_name + "/hazard_lights_cmd", rclcpp::QoS(1));
 
   // Interfaces for AD API.
-  srv_list_mode_ = create_service<ListMode>(
-    ns_ + "/control_mode/list", std::bind(&ManualControlNode::on_list_mode, this, _1, _2));
-  srv_select_mode_ = create_service<SelectMode>(
-    ns_ + "/control_mode/select", std::bind(&ManualControlNode::on_select_mode, this, _1, _2));
+  srv_list_mode_ = agnocast_compat::create_service<ListMode>(
+    this, ns_ + "/control_mode/list", std::bind(&ManualControlNode::on_list_mode, this, _1, _2));
+  srv_select_mode_ = agnocast_compat::create_service<SelectMode>(
+    this, ns_ + "/control_mode/select",
+    std::bind(&ManualControlNode::on_select_mode, this, _1, _2));
   pub_mode_status_ = create_publisher<ManualControlModeStatus>(
     ns_ + "/control_mode/status", rclcpp::QoS(1).transient_local());
-  sub_operation_mode_ = PollingSubscription<OperationModeState>::create_subscription(
-    this, "/api/operation_mode/state", rclcpp::QoS(1).transient_local());
+  sub_operation_mode_ =
+    autoware::agnocast_wrapper::polling::create_polling_subscriber<OperationModeState>(
+      this, "/api/operation_mode/state", rclcpp::QoS(1).transient_local());
 
   // Initialize the current manual control mode.
   update_mode_status(ManualControlMode::DISABLED);

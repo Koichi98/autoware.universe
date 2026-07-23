@@ -22,20 +22,23 @@
 #include <autoware/motion_utils/vehicle/vehicle_state_checker.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include <nav_msgs/msg/odometry.hpp>
+
 // This file should be included after messages.
 #include "utils/types.hpp"
 
 namespace autoware::default_adapi
 {
 
-class MotionNode : public rclcpp::Node
+class MotionNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit MotionNode(const rclcpp::NodeOptions & options);
 
 private:
-  autoware::motion_utils::VehicleStopChecker vehicle_stop_checker_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  autoware::motion_utils::VehicleStopCheckerBase vehicle_stop_checker_;
+  AUTOWARE_SUBSCRIPTION_PTR(nav_msgs::msg::Odometry) sub_kinematic_state_;
+  AUTOWARE_TIMER_PTR timer_;
   rclcpp::CallbackGroup::SharedPtr group_cli_;
   Srv<autoware::adapi_specs::motion::AcceptStart> srv_accept_;
   Pub<autoware::adapi_specs::motion::State> pub_state_;
