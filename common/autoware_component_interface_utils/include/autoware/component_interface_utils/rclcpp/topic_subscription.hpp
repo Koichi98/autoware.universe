@@ -15,24 +15,38 @@
 #ifndef AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__TOPIC_SUBSCRIPTION_HPP_
 #define AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__TOPIC_SUBSCRIPTION_HPP_
 
+#include <rclcpp/qos.hpp>
 #include <rclcpp/subscription.hpp>
 
+#include <functional>
 #include <memory>
+#include <string>
 
 namespace autoware::component_interface_utils
 {
 
-/// The wrapper class of rclcpp::Subscription. This is for future use and no functionality now.
-template <class SpecT>
+/// The wrapper class of a subscription. The underlying handle type is deduced from the node's
+/// create_subscription(), so it is rclcpp::Subscription for a plain rclcpp::Node and the
+/// agnocast-backed subscription for autoware::agnocast_wrapper::Node under ENABLE_AGNOCAST=1.
+///
+/// NOTE: take()/take_and_update() are only valid for the rclcpp handle. They are member templates
+/// instantiated on use, so agnocast-backed nodes that need polling should use
+/// autoware_utils_rclcpp::InterProcessPollingSubscriber instead (the wrapper subscription has no
+/// take()).
+template <class SpecT, class NodeT = rclcpp::Node>
 class Subscription
 {
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(Subscription)
   using SpecType = SpecT;
-  using WrapType = rclcpp::Subscription<typename SpecT::Message>;
+  using WrapType = std::remove_reference_t<
+    decltype(*std::declval<NodeT>().template create_subscription<typename SpecT::Message>(
+      std::declval<const std::string &>(), std::declval<const rclcpp::QoS &>(),
+      std::declval<std::function<void(const typename SpecT::Message &)>>()))>;
+  using WrapSharedPtr = typename WrapType::SharedPtr;
 
   /// Constructor.
-  explicit Subscription(typename WrapType::SharedPtr subscription)
+  explicit Subscription(WrapSharedPtr subscription)
   {
     subscription_ = subscription;  // to keep the reference count
   }
@@ -73,7 +87,7 @@ public:
 
 private:
   RCLCPP_DISABLE_COPY(Subscription)
-  typename WrapType::SharedPtr subscription_;
+  WrapSharedPtr subscription_;
 };
 
 }  // namespace autoware::component_interface_utils

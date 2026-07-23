@@ -19,71 +19,94 @@
 #include <autoware/component_interface_utils/rclcpp/interface.hpp>
 #include <rclcpp/node.hpp>
 
-#include <tier4_system_msgs/msg/service_log.hpp>
-
+#include <chrono>
+#include <memory>
 #include <optional>
-#include <string>
 #include <utility>
 
 namespace autoware::component_interface_utils
 {
 
-/// The wrapper class of rclcpp::Client for logging.
-template <class SpecT>
+/// Create the underlying client handle. Uses rclcpp::QoS for the wrapper node (agnocast-native
+/// create_client) and rmw_qos_profile_t for a plain rclcpp::Node (Humble create_client signature).
+/// The returned handle type is node-native (rclcpp::Client or the agnocast-backed client).
+template <class SpecT, class NodeT>
+auto create_client_handle(NodeT * node, rclcpp::CallbackGroup::SharedPtr group)
+{
+  if constexpr (is_wrapper_node_v<NodeT>) {
+    return node->template create_client<typename SpecT::Service>(
+      SpecT::name, rclcpp::ServicesQoS(), group);
+  } else {
+    return node->template create_client<typename SpecT::Service>(
+      SpecT::name, rmw_qos_profile_services_default, group);
+  }
+}
+
+/// The wrapper class of a service client, providing a synchronous call() and a callback-based
+/// async_send_request() over both the rclcpp client and the agnocast-backed client.
+template <class SpecT, class NodeT = rclcpp::Node>
 class Client
 {
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(Client)
   using SpecType = SpecT;
-  using WrapType = rclcpp::Client<typename SpecT::Service>;
-  using ServiceLog = tier4_system_msgs::msg::ServiceLog;
+  using Request = typename SpecT::Service::Request;
+  using Response = typename SpecT::Service::Response;
+  using SharedRequest = std::shared_ptr<Request>;
+  using SharedResponse = std::shared_ptr<const Response>;
+  using WrapSharedPtr = decltype(create_client_handle<SpecT>(
+    std::declval<NodeT *>(), std::declval<rclcpp::CallbackGroup::SharedPtr>()));
+  using ClientType = typename WrapSharedPtr::element_type;
 
   /// Constructor.
-  Client(NodeInterface::SharedPtr interface, rclcpp::CallbackGroup::SharedPtr group)
-  : interface_(interface)
+  Client(NodeT * node, rclcpp::CallbackGroup::SharedPtr group)
   {
-    client_ = interface->node->create_client<typename SpecT::Service>(
-      SpecT::name, rmw_qos_profile_services_default, group);
+    client_ = create_client_handle<SpecT>(node, group);
   }
 
-  /// Send request.
-  typename WrapType::SharedResponse call(
-    const typename WrapType::SharedRequest request, std::optional<double> timeout = std::nullopt)
+  /// Send request and block until the response is ready (or the timeout elapses).
+  SharedResponse call(const SharedRequest request, std::optional<double> timeout = std::nullopt)
   {
     if (!client_->service_is_ready()) {
-      interface_->log(ServiceLog::ERROR_UNREADY, SpecType::name);
       throw ServiceUnready(SpecT::name);
     }
-
-    const auto future = this->async_send_request(request);
-    if (timeout) {
-      const auto duration = std::chrono::duration<double, std::ratio<1>>(timeout.value());
-      if (future.wait_for(duration) != std::future_status::ready) {
-        interface_->log(ServiceLog::ERROR_TIMEOUT, SpecType::name);
-        throw ServiceTimeout(SpecT::name);
+    if constexpr (is_wrapper_node_v<NodeT>) {
+      // Agnocast-native path: allocate the request from the client, copy in the fields, send.
+      auto req = client_->allocate_output_service_request();
+      *req = *request;
+      auto future = client_->async_send_request(std::move(req)).future;
+      if (timeout) {
+        const auto duration = std::chrono::duration<double, std::ratio<1>>(timeout.value());
+        if (future.wait_for(duration) != std::future_status::ready) {
+          throw ServiceTimeout(SpecT::name);
+        }
       }
+      return std::make_shared<Response>(*future.get());
+    } else {
+      auto future = client_->async_send_request(request).future;
+      if (timeout) {
+        const auto duration = std::chrono::duration<double, std::ratio<1>>(timeout.value());
+        if (future.wait_for(duration) != std::future_status::ready) {
+          throw ServiceTimeout(SpecT::name);
+        }
+      }
+      return future.get();
     }
-    return future.get();
   }
 
-  /// Send request.
-  typename WrapType::SharedFuture async_send_request(typename WrapType::SharedRequest request)
-  {
-    return this->async_send_request(request, [](typename WrapType::SharedFuture) {});
-  }
-
-  /// Send request.
+  /// Send request without blocking. The callback receives the backend-native shared future.
   template <class CallbackT>
-  typename WrapType::SharedFuture async_send_request(
-    typename WrapType::SharedRequest request, CallbackT && callback)
+  void async_send_request(const SharedRequest request, CallbackT && callback)
   {
-    const auto wrapped = [this, callback](typename WrapType::SharedFuture future) {
-      interface_->log(ServiceLog::CLIENT_RESPONSE, SpecType::name, to_yaml(*future.get()));
-      callback(future);
-    };
-
-    interface_->log(ServiceLog::CLIENT_REQUEST, SpecType::name, to_yaml(*request));
-    return client_->async_send_request(request, wrapped).future;
+    if constexpr (is_wrapper_node_v<NodeT>) {
+      auto req = client_->allocate_output_service_request();
+      *req = *request;
+      client_->async_send_request(
+        std::move(req), [callback](typename ClientType::SharedFuture future) { callback(future); });
+    } else {
+      client_->async_send_request(
+        request, [callback](typename ClientType::SharedFuture future) { callback(future); });
+    }
   }
 
   /// Check if the service is ready.
@@ -91,8 +114,7 @@ public:
 
 private:
   RCLCPP_DISABLE_COPY(Client)
-  typename WrapType::SharedPtr client_;
-  NodeInterface::SharedPtr interface_;
+  WrapSharedPtr client_;
 };
 
 }  // namespace autoware::component_interface_utils

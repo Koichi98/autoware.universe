@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(autoware_component_interface_utils)
 
 find_package(autoware_cmake REQUIRED)
+find_package(autoware_agnocast_wrapper REQUIRED)
 autoware_package()
 
 include_directories(
@@ -11,6 +12,7 @@ include_directories(
   ${rosidl_runtime_cpp_INCLUDE_DIRS}
   ${rcl_INCLUDE_DIRS}
   ${autoware_adapi_v1_msgs_INCLUDE_DIRS}
+  ${autoware_agnocast_wrapper_INCLUDE_DIRS}
 )
 
 if(BUILD_TESTING)

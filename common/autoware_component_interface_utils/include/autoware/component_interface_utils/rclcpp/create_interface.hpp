@@ -23,64 +23,69 @@
 #include <autoware/component_interface_utils/specs.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include <memory>
+#include <type_traits>
 #include <utility>
 
 namespace autoware::component_interface_utils
 {
 
-/// Create a client wrapper for logging. This is a private implementation.
-template <class SpecT>
-typename Client<SpecT>::SharedPtr create_client_impl(
-  NodeInterface::SharedPtr interface, rclcpp::CallbackGroup::SharedPtr group = nullptr)
+/// Create a client wrapper. This is a private implementation.
+template <class SpecT, class NodeT>
+typename Client<SpecT, NodeT>::SharedPtr create_client_impl(
+  std::shared_ptr<NodeInterface<NodeT>> interface, rclcpp::CallbackGroup::SharedPtr group = nullptr)
 {
-  // This function is a wrapper for the following.
-  // https://github.com/ros2/rclcpp/blob/48068130edbb43cdd61076dc1851672ff1a80408/rclcpp/include/rclcpp/node.hpp#L253-L265
-  return Client<SpecT>::make_shared(interface, group);
+  return Client<SpecT, NodeT>::make_shared(interface->node, group);
 }
 
-/// Create a service wrapper for logging. This is a private implementation.
-template <class SpecT, class CallbackT>
-typename Service<SpecT>::SharedPtr create_service_impl(
-  NodeInterface::SharedPtr interface, CallbackT && callback,
+/// Create a service wrapper. This is a private implementation.
+template <class SpecT, class NodeT, class CallbackT>
+typename Service<SpecT, NodeT>::SharedPtr create_service_impl(
+  std::shared_ptr<NodeInterface<NodeT>> interface, CallbackT && callback,
   rclcpp::CallbackGroup::SharedPtr group = nullptr)
 {
-  // This function is a wrapper for the following.
-  // https://github.com/ros2/rclcpp/blob/48068130edbb43cdd61076dc1851672ff1a80408/rclcpp/include/rclcpp/node.hpp#L267-L281
-  return Service<SpecT>::make_shared(interface, std::forward<CallbackT>(callback), group);
+  return Service<SpecT, NodeT>::make_shared(
+    interface->node, std::forward<CallbackT>(callback), group);
 }
 
 /// Create a publisher using traits like services. This is a private implementation.
 template <class SpecT, class NodeT>
-typename Publisher<SpecT>::SharedPtr create_publisher_impl(NodeT * node)
+typename Publisher<SpecT, NodeT>::SharedPtr create_publisher_impl(NodeT * node)
 {
-  // This function is a wrapper for the following.
-  // https://github.com/ros2/rclcpp/blob/48068130edbb43cdd61076dc1851672ff1a80408/rclcpp/include/rclcpp/node.hpp#L167-L205
   auto publisher =
     node->template create_publisher<typename SpecT::Message>(SpecT::name, get_qos<SpecT>());
-  return Publisher<SpecT>::make_shared(publisher);
+  return Publisher<SpecT, NodeT>::make_shared(publisher);
 }
 
 /// Create a subscription using traits like services. This is a private implementation.
 template <class SpecT, class NodeT, class CallbackT>
-typename Subscription<SpecT>::SharedPtr create_subscription_impl(
+typename Subscription<SpecT, NodeT>::SharedPtr create_subscription_impl(
   NodeT * node, CallbackT && callback)
 {
-  if constexpr (!std::is_null_pointer_v<CallbackT>) {
-    // This function is a wrapper for the following.
-    // https://github.com/ros2/rclcpp/blob/48068130edbb43cdd61076dc1851672ff1a80408/rclcpp/include/rclcpp/node.hpp#L207-L238
-    auto subscription = node->template create_subscription<typename SpecT::Message>(
-      SpecT::name, get_qos<SpecT>(), std::forward<CallbackT>(callback));
-    return Subscription<SpecT>::make_shared(subscription);
-  } else {
-    // If the callback is nullptr, create a subscription for polling.
-    // https://github.com/autowarefoundation/autoware.universe/tree/main/common/autoware_universe_utils/include/autoware/universe_utils/ros/polling_subscriber.hpp
+  if constexpr (std::is_null_pointer_v<std::decay_t<CallbackT>>) {
+    // If the callback is nullptr, create a subscription for polling (rclcpp take path).
     auto group = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive, false);
     auto options = rclcpp::SubscriptionOptions();
     options.callback_group = group;
 
     auto subscription = node->template create_subscription<typename SpecT::Message>(
-      SpecT::name, get_qos<SpecT>(), [](const typename SpecT::Message) {}, options);
-    return Subscription<SpecT>::make_shared(subscription);
+      SpecT::name, get_qos<SpecT>(), [](const typename SpecT::Message &) {}, options);
+    return Subscription<SpecT, NodeT>::make_shared(subscription);
+  } else if constexpr (std::is_invocable_v<CallbackT, const typename SpecT::Message &>) {
+    // Callback takes const-ref (or by value): agnocast-compatible, pass through directly.
+    auto subscription = node->template create_subscription<typename SpecT::Message>(
+      SpecT::name, get_qos<SpecT>(), std::forward<CallbackT>(callback));
+    return Subscription<SpecT, NodeT>::make_shared(subscription);
+  } else {
+    // Callback takes Message::ConstSharedPtr: adapt to a const-ref callback (one copy) so it is
+    // valid for both rclcpp and the agnocast-backed subscription.
+    auto cb = std::forward<CallbackT>(callback);
+    auto adapted = [cb](const typename SpecT::Message & msg) {
+      cb(std::make_shared<typename SpecT::Message>(msg));
+    };
+    auto subscription = node->template create_subscription<typename SpecT::Message>(
+      SpecT::name, get_qos<SpecT>(), adapted);
+    return Subscription<SpecT, NodeT>::make_shared(subscription);
   }
 }
 

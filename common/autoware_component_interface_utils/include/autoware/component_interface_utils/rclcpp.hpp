@@ -29,6 +29,7 @@
 namespace autoware::component_interface_utils
 {
 
+template <class NodeT = rclcpp::Node>
 class NodeAdaptor
 {
 private:
@@ -48,7 +49,16 @@ private:
 
 public:
   /// Constructor.
-  explicit NodeAdaptor(rclcpp::Node * node) { interface_ = std::make_shared<NodeInterface>(node); }
+  ///
+  /// The constructor is a member template on the (possibly derived) node type D so that
+  /// `NodeAdaptor(this)` does not deduce the class parameter NodeT from D; NodeT therefore stays at
+  /// its default (rclcpp::Node) for plain rclcpp nodes, and callers on the wrapper spell it out as
+  /// `NodeAdaptor<Node>(this)`. D must be convertible to NodeT* (i.e. derive from NodeT).
+  template <class D>
+  explicit NodeAdaptor(D * node)
+  {
+    interface_ = std::make_shared<NodeInterface<NodeT>>(node);
+  }
 
   /// Create a client wrapper for logging.
   template <class SharedPtrT>
@@ -133,7 +143,7 @@ public:
 
 private:
   // Use a node pointer because shared_from_this cannot be used in constructor.
-  NodeInterface::SharedPtr interface_;
+  typename NodeInterface<NodeT>::SharedPtr interface_;
 };
 
 }  // namespace autoware::component_interface_utils

@@ -15,57 +15,45 @@
 #ifndef AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__INTERFACE_HPP_
 #define AUTOWARE__COMPONENT_INTERFACE_UTILS__RCLCPP__INTERFACE_HPP_
 
+// Provides autoware::agnocast_wrapper::Node and the AUTOWARE_* macros. Under ENABLE_AGNOCAST=0 the
+// macros resolve to plain rclcpp/std types, so consumers that pass a plain rclcpp::Node are
+// unaffected; under =1 they resolve to the agnocast-backed wrapper types.
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include <tier4_system_msgs/msg/service_log.hpp>
-
 #include <memory>
-#include <string>
-#include <unordered_map>
+#include <type_traits>
 
 namespace autoware::component_interface_utils
 {
 
+/// Trait that is true when NodeT exposes get_rclcpp_node(), i.e. it is an
+/// autoware::agnocast_wrapper::Node rather than a plain rclcpp::Node. Used to pick the
+/// agnocast-native create path (rclcpp::QoS + wrapper handle types) vs the plain rclcpp path
+/// (rmw_qos_profile_t + rclcpp handle types), and to keep working for both node types.
+template <class NodeT, class = void>
+struct is_wrapper_node : std::false_type
+{
+};
+template <class NodeT>
+struct is_wrapper_node<NodeT, std::void_t<decltype(std::declval<NodeT>().get_rclcpp_node())>>
+: std::true_type
+{
+};
+template <class NodeT>
+inline constexpr bool is_wrapper_node_v = is_wrapper_node<NodeT>::value;
+
+/// Minimal holder for the node pointer used to create publishers, subscriptions, services and
+/// clients. Templated on the node type so both rclcpp::Node and autoware::agnocast_wrapper::Node
+/// can be adapted; the created handle types are deduced from the node's create_* methods.
+template <class NodeT = rclcpp::Node>
 struct NodeInterface
 {
   using SharedPtr = std::shared_ptr<NodeInterface>;
-  using ServiceLog = tier4_system_msgs::msg::ServiceLog;
 
-  explicit NodeInterface(rclcpp::Node * node)
-  {
-    this->node = node;
-    this->logger = node->create_publisher<ServiceLog>("/service_log", 10);
+  explicit NodeInterface(NodeT * node) { this->node = node; }
 
-    node_name = node->get_namespace();
-    if (node_name.empty() || node_name.back() != '/') {
-      node_name += "/";
-    }
-    node_name += node->get_name();
-  }
-
-  void log(ServiceLog::_type_type type, const std::string & name, const std::string & yaml = "")
-  {
-    static const auto type_text = std::unordered_map<ServiceLog::_type_type, std::string>(
-      {{ServiceLog::CLIENT_REQUEST, "client call"},
-       {ServiceLog::SERVER_REQUEST, "server call"},
-       {ServiceLog::SERVER_RESPONSE, "server exit"},
-       {ServiceLog::CLIENT_RESPONSE, "client exit"},
-       {ServiceLog::ERROR_UNREADY, "client unready"},
-       {ServiceLog::ERROR_TIMEOUT, "client timeout"}});
-    RCLCPP_DEBUG_STREAM(node->get_logger(), type_text.at(type) << ": " << name);
-
-    ServiceLog msg;
-    msg.stamp = node->now();
-    msg.type = type;
-    msg.name = name;
-    msg.node = node_name;
-    msg.yaml = yaml;
-    logger->publish(msg);
-  }
-
-  rclcpp::Node * node;
-  rclcpp::Publisher<ServiceLog>::SharedPtr logger;
-  std::string node_name;
+  NodeT * node;
 };
 
 }  // namespace autoware::component_interface_utils
