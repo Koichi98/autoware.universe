@@ -119,7 +119,7 @@ static std::array<float, low_visibility_debug_field_count> make_low_visibility_d
 
 PolarVoxelOutlierFilterComponent::PolarVoxelOutlierFilterComponent(
   const rclcpp::NodeOptions & options)
-: Filter("PolarVoxelOutlierFilter", options),
+: FilterBase("PolarVoxelOutlierFilter", options),
   azimuth_domain_min(0.0),
   azimuth_domain_max(TWO_PI),
   elevation_domain_min(-M_PI / 2.0),
@@ -207,7 +207,7 @@ PolarVoxelOutlierFilterComponent::PolarVoxelOutlierFilterComponent(
 
   // Create noise cloud publisher if enabled
   if (publish_noise_cloud_) {
-    rclcpp::PublisherOptions pub_options;
+    AUTOWARE_PUBLISHER_OPTIONS pub_options;
     pub_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
     noise_cloud_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
       "polar_voxel_outlier_filter/debug/pointcloud_noise", rclcpp::SensorDataQoS(), pub_options);
@@ -225,18 +225,6 @@ PolarVoxelOutlierFilterComponent::PolarVoxelOutlierFilterComponent(
   using std::placeholders::_1;
   set_param_res_ = this->add_on_set_parameters_callback(
     [this](const std::vector<rclcpp::Parameter> & p) { return param_callback(p); });
-
-  // TODO(Koichi98): Remove this override once this node is instantiated on
-  // FilterBase<agnocast_wrapper::Node>, which subscribes through agnocast itself.
-  // Needed because FilterBase<rclcpp::Node>::sub_input_ is a plain rclcpp subscription.
-  sub_input_.reset();
-  // cppcheck-suppress unknownMacro
-  agnocast_sub_input_ = AUTOWARE_CREATE_SUBSCRIPTION(
-    PointCloud2, "input", rclcpp::SensorDataQoS().keep_last(max_queue_size_),
-    [this](const PointCloud2ConstPtr & msg) {
-      input_indices_callback(msg, PointIndicesConstPtr());
-    },
-    AUTOWARE_SUBSCRIPTION_OPTIONS{});
 
   RCLCPP_INFO(
     get_logger(),
@@ -505,7 +493,10 @@ void PolarVoxelOutlierFilterComponent::publish_noise_cloud(
     return;
   }
 
-  sensor_msgs::msg::PointCloud2 noise_cloud;
+  // Built directly into the loaned message: every allocation below (notably data.resize())
+  // then lands in shared memory, and publish() hands the loan over without a copy.
+  auto noise_cloud_msg = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(noise_cloud_pub_);
+  auto & noise_cloud = *noise_cloud_msg;
   noise_cloud.header = input.header;
   noise_cloud.height = point_cloud_height_organized;
   noise_cloud.width =
@@ -559,7 +550,7 @@ void PolarVoxelOutlierFilterComponent::publish_noise_cloud(
     }
   }
 
-  noise_cloud_pub_->publish(noise_cloud);
+  noise_cloud_pub_->publish(std::move(noise_cloud_msg));
 }
 
 void PolarVoxelOutlierFilterComponent::publish_diagnostics(
@@ -658,10 +649,10 @@ void PolarVoxelOutlierFilterComponent::publish_visibility_metric()
     return;
   }
 
-  autoware_internal_debug_msgs::msg::Float32Stamped visibility_msg;
-  visibility_msg.stamp = this->now();
-  visibility_msg.data = static_cast<float>(visibility_.value());
-  visibility_pub_->publish(visibility_msg);
+  auto visibility_msg = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(visibility_pub_);
+  visibility_msg->stamp = this->now();
+  visibility_msg->data = static_cast<float>(visibility_.value());
+  visibility_pub_->publish(std::move(visibility_msg));
 }
 
 void PolarVoxelOutlierFilterComponent::publish_filter_ratio_metric()
@@ -670,10 +661,10 @@ void PolarVoxelOutlierFilterComponent::publish_filter_ratio_metric()
     return;
   }
 
-  autoware_internal_debug_msgs::msg::Float32Stamped ratio_msg;
-  ratio_msg.stamp = this->now();
-  ratio_msg.data = static_cast<float>(filter_ratio_.value_or(0.0));
-  ratio_pub_->publish(ratio_msg);
+  auto ratio_msg = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(ratio_pub_);
+  ratio_msg->stamp = this->now();
+  ratio_msg->data = static_cast<float>(filter_ratio_.value_or(0.0));
+  ratio_pub_->publish(std::move(ratio_msg));
 }
 
 void PolarVoxelOutlierFilterComponent::publish_low_visibility_voxels(
@@ -693,7 +684,8 @@ void PolarVoxelOutlierFilterComponent::publish_low_visibility_voxels(
   const size_t selected_point_count = std::count_if(
     point_voxel_info.begin(), point_voxel_info.end(), is_selected_low_visibility_point);
 
-  sensor_msgs::msg::PointCloud2 cloud;
+  auto cloud_msg = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(low_visibility_voxels_pub_);
+  auto & cloud = *cloud_msg;
   cloud.header = input.header;
   cloud.height = point_cloud_height_organized;
   cloud.width = static_cast<uint32_t>(selected_point_count);
@@ -725,7 +717,7 @@ void PolarVoxelOutlierFilterComponent::publish_low_visibility_voxels(
     }
   }
 
-  low_visibility_voxels_pub_->publish(cloud);
+  low_visibility_voxels_pub_->publish(std::move(cloud_msg));
 }
 
 bool PolarVoxelOutlierFilterComponent::has_polar_coordinates(const PointCloud2 & input)
@@ -1051,7 +1043,7 @@ void PolarVoxelOutlierFilterComponent::update_publish_noise_cloud(const rclcpp::
 
   // Recreate publisher if needed
   if (!noise_cloud_pub_) {
-    rclcpp::PublisherOptions pub_options;
+    AUTOWARE_PUBLISHER_OPTIONS pub_options;
     pub_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
     noise_cloud_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
       "polar_voxel_outlier_filter/debug/pointcloud_noise", rclcpp::SensorDataQoS(), pub_options);
@@ -1571,7 +1563,8 @@ PolarVoxelOutlierFilterComponent::extract_polar_from_xyz(float x, float y, float
 void PolarVoxelOutlierFilterComponent::publish_area_marker(
   const std_msgs::msg::Header & input_header)
 {
-  auto marker = visualization_msgs::msg::Marker();
+  auto marker_msg = ALLOCATE_OUTPUT_MESSAGE_UNIQUE(area_marker_pub_);
+  auto & marker = *marker_msg;
   marker.header = input_header;
   marker.ns = "visibility_estimation_area";
   marker.id = 0;
@@ -1685,7 +1678,7 @@ void PolarVoxelOutlierFilterComponent::publish_area_marker(
     }
   }
 
-  area_marker_pub_->publish(marker);
+  area_marker_pub_->publish(std::move(marker_msg));
 }
 }  // namespace autoware::pointcloud_preprocessor
 
