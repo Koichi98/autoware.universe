@@ -81,7 +81,6 @@
 // Autoware utils
 #include <autoware/agnocast_wrapper/message_filters.hpp>
 #include <autoware/agnocast_wrapper/node.hpp>
-#include <autoware/agnocast_wrapper/tf2.hpp>
 #include <autoware_utils/ros/debug_publisher.hpp>
 #include <autoware_utils/ros/diagnostics_interface.hpp>
 #include <autoware_utils/ros/published_time_publisher.hpp>
@@ -281,22 +280,16 @@ protected:
    * versus an exact one (false by default). */
   bool approximate_sync_ = false;
 
-  /** \brief Only the wrapper node runs on an agnocast executor, where ManagedTransformBuffer's
-   * internal rclcpp node is unusable. Filters still instantiated with rclcpp::Node keep it: the
-   * wrapper tf2 backend is agnocast-only at ENABLE_AGNOCAST=1 and would break them in a plain
-   * component container. */
-  static constexpr bool use_wrapper_tf = std::is_same_v<NodeT, autoware::agnocast_wrapper::Node>;
-
-  std::unique_ptr<autoware::agnocast_wrapper::Buffer> tf_buffer_{nullptr};
-  std::unique_ptr<autoware::agnocast_wrapper::TransformListener> tf_listener_{nullptr};
   std::unique_ptr<managed_transform_buffer::ManagedTransformBuffer> managed_tf_buffer_{nullptr};
 
-  /** \brief Transform a pointcloud into target_frame. Returns false on lookup failure. */
+  /** \brief Transform a pointcloud into target_frame via managed_tf_buffer_. Returns false on
+   * lookup failure. */
   bool transform_pointcloud(
     const std::string & target_frame, const sensor_msgs::msg::PointCloud2 & in,
     sensor_msgs::msg::PointCloud2 & out);
 
-  /** \brief Look up target_frame <- source_frame as an Eigen matrix at the given stamp. */
+  /** \brief Look up target_frame <- source_frame as an Eigen matrix at the given stamp, via
+   * managed_tf_buffer_. */
   std::optional<Eigen::Matrix4f> lookup_transform_matrix(
     const std::string & target_frame, const std::string & source_frame, const rclcpp::Time & stamp);
 
@@ -496,14 +489,6 @@ private:
     template <typename...> class Policy, template <typename...> class AgnocastPolicy,
     typename Callback>
   std::shared_ptr<SyncPolicy<Policy, AgnocastPolicy>> make_sync(Callback callback);
-
-  // Bridges an agnocast message_ptr into a ConstSharedPtr via an aliasing shared_ptr: the
-  // returned pointer shares ownership with (keeps alive) the message_ptr, but points directly
-  // at its payload, so the message content is never deep-copied.
-  template <typename MessageT>
-  static
-    typename MessageT::ConstSharedPtr bridge_message(AUTOWARE_MESSAGE_CONST_SHARED_PTR(MessageT)
-                                                       msg);
 
   /** \brief Get a matrix for conversion from the original frame to the target frame */
   bool calculate_transform_matrix(

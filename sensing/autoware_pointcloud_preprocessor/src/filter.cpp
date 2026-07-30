@@ -93,12 +93,11 @@ autoware::pointcloud_preprocessor::FilterBase<NodeT>::FilterBase(
 
   // Set publisher
   {
-    // AUTOWARE_PUBLISHER_OPTIONS expands to rclcpp::PublisherOptions when not compiled with
-    // USE_AGNOCAST_ENABLED, so this collapses to rclcpp::PublisherOptions in that build
-    // regardless of NodeT.
-    using PublisherOptionsT = std::conditional_t<
-      std::is_same_v<NodeT, autoware::agnocast_wrapper::Node>, AUTOWARE_PUBLISHER_OPTIONS,
-      rclcpp::PublisherOptions>;
+    // kIsAgnocastNode is exactly "NodeT::create_publisher takes agnocast options", so this
+    // picks rclcpp::PublisherOptions for a plain node and for the wrapper node in a build
+    // without USE_AGNOCAST_ENABLED.
+    using PublisherOptionsT =
+      std::conditional_t<kIsAgnocastNode, AUTOWARE_PUBLISHER_OPTIONS, rclcpp::PublisherOptions>;
     PublisherOptionsT pub_options;
     pub_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
     pub_output_ = this->template create_publisher<PointCloud2>(
@@ -123,13 +122,7 @@ autoware::pointcloud_preprocessor::FilterBase<NodeT>::FilterBase(
 template <typename NodeT>
 void autoware::pointcloud_preprocessor::FilterBase<NodeT>::setup_tf()
 {
-  if constexpr (use_wrapper_tf) {
-    tf_buffer_ = std::make_unique<autoware::agnocast_wrapper::Buffer>(this->get_clock());
-    // Buffer-only ctor: the listener owns its node internally.
-    tf_listener_ = std::make_unique<autoware::agnocast_wrapper::TransformListener>(*tf_buffer_);
-  } else {
-    managed_tf_buffer_ = std::make_unique<managed_transform_buffer::ManagedTransformBuffer>();
-  }
+  managed_tf_buffer_ = std::make_unique<managed_transform_buffer::ManagedTransformBuffer>();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,39 +134,20 @@ void autoware::pointcloud_preprocessor::FilterBase<NodeT>::subscribe()
 }
 
 template <typename NodeT>
-template <typename MessageT>
-typename MessageT::ConstSharedPtr
-autoware::pointcloud_preprocessor::FilterBase<NodeT>::bridge_message(
-  AUTOWARE_MESSAGE_CONST_SHARED_PTR(MessageT) msg)
-{
-  if (!msg) {
-    return nullptr;
-  }
-  auto holder = std::make_shared<AUTOWARE_MESSAGE_CONST_SHARED_PTR(MessageT)>(std::move(msg));
-  return typename MessageT::ConstSharedPtr(holder, holder->get());
-}
-
-template <typename NodeT>
 template <
   template <typename...> class Policy, template <typename...> class AgnocastPolicy,
   typename Callback>
 auto autoware::pointcloud_preprocessor::FilterBase<NodeT>::make_sync(Callback callback)
   -> std::shared_ptr<SyncPolicy<Policy, AgnocastPolicy>>
 {
+  // The wrapper Synchronizer takes its subscribers through the constructor rather than
+  // connectInput(); the callback itself is the same on both paths, since the wrapper delivers
+  // plain PointCloud2::ConstSharedPtr / PointIndices::ConstSharedPtr.
   if constexpr (kIsAgnocastNode) {
-    // The wrapper Synchronizer takes the subscribers via its constructor, not connectInput(),
-    // and its callback carries message_ptr-wrapped args. Bridge each into a ConstSharedPtr via
-    // an aliasing shared_ptr (shares the message_ptr's ownership, points at its payload) so the
-    // callback's payload is never deep-copied.
-    auto adapted_callback = [this, callback](
-                              const AUTOWARE_MESSAGE_CONST_SHARED_PTR(PointCloud2) & cloud,
-                              const AUTOWARE_MESSAGE_CONST_SHARED_PTR(PointIndices) & indices) {
-      (this->*callback)(bridge_message(cloud), bridge_message(indices));
-    };
     auto sync = std::make_shared<SyncPolicy<Policy, AgnocastPolicy>>(
       AgnocastPolicy<PointCloud2, PointIndices>(max_queue_size_), sub_input_filter_,
       sub_indices_filter_);
-    sync->registerCallback(adapted_callback);
+    sync->registerCallback(callback, this);
     return sync;
   } else {
     auto sync = std::make_shared<SyncPolicy<Policy, AgnocastPolicy>>(max_queue_size_);
@@ -214,20 +188,11 @@ void autoware::pointcloud_preprocessor::FilterBase<NodeT>::subscribe(
     }
   } else {
     // Subscribe in an old fashion to input only (no filters)
-    auto subscribe_input = [this](auto cb) {
-      sub_input_ = this->template create_subscription<PointCloud2>(
-        "input", rclcpp::SensorDataQoS().keep_last(max_queue_size_), cb);
-    };
-    if constexpr (kIsAgnocastNode) {
-      subscribe_input([this, callback](AUTOWARE_MESSAGE_CONST_SHARED_PTR(PointCloud2) msg) {
-        (this->*callback)(bridge_message(std::move(msg)), PointIndicesConstPtr());
-      });
-    } else {
-      // CAN'T use auto-type here.
-      subscribe_input(
-        std::function<void(const PointCloud2ConstPtr)>(
-          std::bind(callback, this, std::placeholders::_1, PointIndicesConstPtr())));
-    }
+    // CAN'T use auto-type here.
+    std::function<void(const PointCloud2ConstPtr)> cb =
+      std::bind(callback, this, std::placeholders::_1, PointIndicesConstPtr());
+    sub_input_ = this->template create_subscription<PointCloud2>(
+      "input", rclcpp::SensorDataQoS().keep_last(max_queue_size_), cb);
   }
 }
 
@@ -399,20 +364,9 @@ bool autoware::pointcloud_preprocessor::FilterBase<NodeT>::transform_pointcloud(
   const std::string & target_frame, const sensor_msgs::msg::PointCloud2 & in,
   sensor_msgs::msg::PointCloud2 & out)
 {
-  if constexpr (!use_wrapper_tf) {
-    return managed_tf_buffer_->transformPointcloud(
-      target_frame, in, out, in.header.stamp, rclcpp::Duration::from_seconds(1.0),
-      this->get_logger());
-  } else {
-    const auto eigen_transform_opt =
-      lookup_transform_matrix(target_frame, in.header.frame_id, in.header.stamp);
-    if (!eigen_transform_opt) {
-      return false;
-    }
-    pcl_ros::transformPointCloud(*eigen_transform_opt, in, out);
-    out.header.frame_id = target_frame;
-    return true;
-  }
+  return managed_tf_buffer_->transformPointcloud(
+    target_frame, in, out, in.header.stamp, rclcpp::Duration::from_seconds(1.0),
+    this->get_logger());
 }
 
 template <typename NodeT>
@@ -420,22 +374,8 @@ std::optional<Eigen::Matrix4f>
 autoware::pointcloud_preprocessor::FilterBase<NodeT>::lookup_transform_matrix(
   const std::string & target_frame, const std::string & source_frame, const rclcpp::Time & stamp)
 {
-  if constexpr (!use_wrapper_tf) {
-    return managed_tf_buffer_->getTransform<Eigen::Matrix4f>(
-      target_frame, source_frame, stamp, rclcpp::Duration::from_seconds(1.0), this->get_logger());
-  }
-  try {
-    const auto transform = tf_buffer_->lookupTransform(
-      target_frame, source_frame, stamp, rclcpp::Duration::from_seconds(1.0));
-    Eigen::Matrix4f matrix;
-    pcl_ros::transformAsMatrix(transform, matrix);
-    return matrix;
-  } catch (const tf2::TransformException & e) {
-    RCLCPP_WARN_THROTTLE(
-      this->get_logger(), *this->get_clock(), 5000, "Failed to look up %s <- %s: %s",
-      target_frame.c_str(), source_frame.c_str(), e.what());
-    return std::nullopt;
-  }
+  return managed_tf_buffer_->getTransform<Eigen::Matrix4f>(
+    target_frame, source_frame, stamp, rclcpp::Duration::from_seconds(1.0), this->get_logger());
 }
 
 // Returns false in error cases
