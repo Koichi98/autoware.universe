@@ -16,6 +16,8 @@
 #define VEHICLE_DOOR_HPP_
 
 #include <autoware/adapi_specs/vehicle.hpp>
+#include <autoware/agnocast_wrapper/diagnostic_updater.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware/component_interface_specs_universe/system.hpp>
 #include <autoware/component_interface_specs_universe/vehicle.hpp>
 #include <autoware/component_interface_utils/status.hpp>
@@ -30,7 +32,18 @@
 namespace autoware::default_adapi
 {
 
-class VehicleDoorNode : public rclcpp::Node
+// EXPERIMENT: local aliases so only this node is migrated.
+using AgnocastNode = autoware::agnocast_wrapper::Node;
+template <class T>
+using PubA = typename autoware::component_interface_utils::Publisher<T, AgnocastNode>::SharedPtr;
+template <class T>
+using SubA = typename autoware::component_interface_utils::Subscription<T, AgnocastNode>::SharedPtr;
+template <class T>
+using CliA = typename autoware::component_interface_utils::Client<T, AgnocastNode>::SharedPtr;
+template <class T>
+using SrvA = typename autoware::component_interface_utils::Service<T, AgnocastNode>::SharedPtr;
+
+class VehicleDoorNode : public AgnocastNode
 {
 public:
   explicit VehicleDoorNode(const rclcpp::NodeOptions & options);
@@ -52,20 +65,20 @@ private:
     const ExternalDoorCommand::Service::Request::SharedPtr req,
     const ExternalDoorCommand::Service::Response::SharedPtr res);
 
-  diagnostic_updater::Updater diagnostics_;
+  autoware::agnocast_wrapper::diagnostic_updater::Updater diagnostics_;
   rclcpp::CallbackGroup::SharedPtr group_cli_;
-  Srv<ExternalDoorCommand> srv_command_;
-  Srv<ExternalDoorLayout> srv_layout_;
-  Pub<ExternalDoorStatus> pub_status_;
-  Cli<InternalDoorCommand> cli_command_;
-  Cli<InternalDoorLayout> cli_layout_;
-  Sub<InternalDoorStatus> sub_status_;
+  SrvA<ExternalDoorCommand> srv_command_;
+  SrvA<ExternalDoorLayout> srv_layout_;
+  PubA<ExternalDoorStatus> pub_status_;
+  CliA<InternalDoorCommand> cli_command_;
+  CliA<InternalDoorLayout> cli_layout_;
+  SubA<InternalDoorStatus> sub_status_;
   std::optional<InternalDoorStatus::Message> status_;
 
   bool check_autoware_control_;
   bool is_autoware_control_;
   bool is_stop_mode_;
-  Sub<OperationModeState> sub_operation_mode_;
+  SubA<OperationModeState> sub_operation_mode_;
 };
 
 }  // namespace autoware::default_adapi

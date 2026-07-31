@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(autoware_default_adapi_universe)
 
 find_package(autoware_cmake REQUIRED)
+find_package(autoware_agnocast_wrapper REQUIRED)
 autoware_package()
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
@@ -22,6 +23,12 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   src/utils/command_conversion.cpp
   src/compatibility/autoware_state.cpp
 )
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+  ${autoware_agnocast_wrapper_INCLUDE_DIRS}
+)
+ament_target_dependencies(${PROJECT_NAME} autoware_agnocast_wrapper)
+autoware_agnocast_wrapper_setup(${PROJECT_NAME})
 
 rclcpp_components_register_nodes(${PROJECT_NAME}
   "autoware::default_adapi::AutowareStateNode"
