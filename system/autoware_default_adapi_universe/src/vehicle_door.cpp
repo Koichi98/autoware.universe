@@ -16,6 +16,8 @@
 
 #include "utils/topics.hpp"
 
+#include <functional>
+
 namespace autoware::default_adapi
 {
 
@@ -25,14 +27,21 @@ VehicleDoorNode::VehicleDoorNode(const rclcpp::NodeOptions & options)
   diagnostics_.setHardwareID("none");
   diagnostics_.add("state", this, &VehicleDoorNode::diagnose_state);
 
-  const auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
+  using std::placeholders::_1;
+  using std::placeholders::_2;
+
+  // The returning forms are non-const member functions, so the adaptor is not declared const.
+  auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
   group_cli_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   adaptor.relay_service(cli_layout_, srv_layout_, group_cli_);
-  adaptor.init_cli(cli_command_, group_cli_);
-  adaptor.init_srv(srv_command_, this, &VehicleDoorNode::on_command);
-  adaptor.init_pub(pub_status_);
-  adaptor.init_sub(sub_status_, this, &VehicleDoorNode::on_status);
-  adaptor.init_sub(sub_operation_mode_, this, &VehicleDoorNode::on_operation_mode);
+  cli_command_ = adaptor.create_client<InternalDoorCommand>(group_cli_);
+  srv_command_ = adaptor.create_service<ExternalDoorCommand>(
+    std::bind(&VehicleDoorNode::on_command, this, _1, _2));
+  pub_status_ = adaptor.create_publisher<ExternalDoorStatus>();
+  sub_status_ = adaptor.create_subscription<InternalDoorStatus>(
+    std::bind(&VehicleDoorNode::on_status, this, _1));
+  sub_operation_mode_ = adaptor.create_subscription<OperationModeState>(
+    std::bind(&VehicleDoorNode::on_operation_mode, this, _1));
 
   check_autoware_control_ = declare_parameter<bool>("check_autoware_control");
   is_autoware_control_ = false;
