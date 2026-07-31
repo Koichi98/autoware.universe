@@ -31,7 +31,7 @@ VehicleDoorNode::VehicleDoorNode(const rclcpp::NodeOptions & options)
   using std::placeholders::_2;
 
   // The returning forms are non-const member functions, so the adaptor is not declared const.
-  auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
+  auto adaptor = autoware::component_interface_utils::NodeAdaptor<AgnocastNode>(this);
   group_cli_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   adaptor.relay_service(cli_layout_, srv_layout_, group_cli_);
   cli_command_ = adaptor.create_client<InternalDoorCommand>(group_cli_);
