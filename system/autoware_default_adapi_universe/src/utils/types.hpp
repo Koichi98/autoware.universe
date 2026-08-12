@@ -20,14 +20,17 @@
 namespace autoware::default_adapi
 {
 
-template <class T>
-using Pub = typename autoware::component_interface_utils::Publisher<T>::SharedPtr;
-template <class T>
-using Sub = typename autoware::component_interface_utils::Subscription<T>::SharedPtr;
-template <class T>
-using Cli = typename autoware::component_interface_utils::Client<T>::SharedPtr;
-template <class T>
-using Srv = typename autoware::component_interface_utils::Service<T>::SharedPtr;
+// NodeT defaults to rclcpp::Node so nodes that have not moved to
+// autoware::agnocast_wrapper::Node keep spelling these as Pub<Spec>; the migrated ones pass
+// their node type explicitly, as NodeAdaptor requires.
+template <class T, class NodeT = rclcpp::Node>
+using Pub = typename autoware::component_interface_utils::Publisher<T, NodeT>::SharedPtr;
+template <class T, class NodeT = rclcpp::Node>
+using Sub = typename autoware::component_interface_utils::Subscription<T, NodeT>::SharedPtr;
+template <class T, class NodeT = rclcpp::Node>
+using Cli = typename autoware::component_interface_utils::Client<T, NodeT>::SharedPtr;
+template <class T, class NodeT = rclcpp::Node>
+using Srv = typename autoware::component_interface_utils::Service<T, NodeT>::SharedPtr;
 
 }  // namespace autoware::default_adapi
 
