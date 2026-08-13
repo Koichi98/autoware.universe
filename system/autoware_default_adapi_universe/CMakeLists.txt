@@ -26,31 +26,36 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
 ament_target_dependencies(${PROJECT_NAME} autoware_agnocast_wrapper)
 autoware_agnocast_wrapper_setup(${PROJECT_NAME})
 
-# VehicleStatusNode derives from autoware::agnocast_wrapper::Node, which requires an AgnocastOnly
-# executor, so it runs as a standalone executable rather than inside a component container.
-autoware_agnocast_wrapper_register_node(${PROJECT_NAME}
-  PLUGIN "autoware::default_adapi::VehicleStatusNode"
-  EXECUTABLE vehicle_status_node
-  ROS2_EXECUTOR MultiThreadedExecutor
-  AGNOCAST_EXECUTOR AgnocastOnlyMultiThreadedExecutor
+# These nodes derive from autoware::agnocast_wrapper::Node, which requires an AgnocastOnly
+# executor, so they run as standalone executables rather than inside a component container.
+# The container was component_container_mt, so the multi-threaded executors are kept: some of
+# these nodes call a client from inside a service callback and deadlock on a single thread.
+foreach(node
+  "VehicleStatusNode;vehicle_status_node"
+  "VehicleInfoNode;vehicle_info_node"
+  "VehicleCommandNode;vehicle_command_node"
+  "VehicleMetricsNode;vehicle_metrics_node"
+  "PerceptionNode;perception_node"
+  "FailSafeNode;fail_safe_node"
+  "HeartbeatNode;heartbeat_node"
+  "DiagnosticsNode;diagnostics_node"
+  "OperationModeNode;operation_mode_node"
+  "AutowareStateNode;autoware_state_node"
+  "MrmRequestNode;mrm_request_node"
+  "VehicleDoorNode;vehicle_door_node"
+  "MotionNode;motion_node"
+  "PlanningNode;planning_node"
+  "ManualControlNode;manual_control_node"
 )
-
-rclcpp_components_register_nodes(${PROJECT_NAME}
-  "autoware::default_adapi::AutowareStateNode"
-  "autoware::default_adapi::DiagnosticsNode"
-  "autoware::default_adapi::FailSafeNode"
-  "autoware::default_adapi::HeartbeatNode"
-  "autoware::default_adapi::ManualControlNode"
-  "autoware::default_adapi::MotionNode"
-  "autoware::default_adapi::MrmRequestNode"
-  "autoware::default_adapi::OperationModeNode"
-  "autoware::default_adapi::PerceptionNode"
-  "autoware::default_adapi::PlanningNode"
-  "autoware::default_adapi::VehicleCommandNode"
-  "autoware::default_adapi::VehicleMetricsNode"
-  "autoware::default_adapi::VehicleInfoNode"
-  "autoware::default_adapi::VehicleDoorNode"
-)
+  list(GET node 0 class_name)
+  list(GET node 1 executable_name)
+  autoware_agnocast_wrapper_register_node(${PROJECT_NAME}
+    PLUGIN "autoware::default_adapi::${class_name}"
+    EXECUTABLE ${executable_name}
+    ROS2_EXECUTOR MultiThreadedExecutor
+    AGNOCAST_EXECUTOR AgnocastOnlyMultiThreadedExecutor
+  )
+endforeach()
 
 if(BUILD_TESTING)
 endif()

@@ -22,7 +22,8 @@
 namespace autoware::default_adapi
 {
 
-DiagnosticsNode::DiagnosticsNode(const rclcpp::NodeOptions & options) : Node("diagnostics", options)
+DiagnosticsNode::DiagnosticsNode(const rclcpp::NodeOptions & options)
+: autoware::agnocast_wrapper::Node("diagnostics", options)
 {
   using std::placeholders::_1;
   using std::placeholders::_2;

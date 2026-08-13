@@ -21,13 +21,24 @@ namespace autoware::default_adapi
 {
 
 MotionNode::MotionNode(const rclcpp::NodeOptions & options)
-: Node("motion", options), vehicle_stop_checker_(this)
+: autoware::agnocast_wrapper::Node("motion", options),
+  vehicle_stop_checker_(this, velocity_buffer_time_sec)
 {
   stop_check_duration_ = declare_parameter<double>("stop_check_duration");
   require_accept_start_ = declare_parameter<bool>("require_accept_start");
   is_calling_set_pause_ = false;
 
-  const auto adaptor = autoware::component_interface_utils::NodeAdaptor(this);
+  // Replaces VehicleStopChecker's own subscription so it follows this node's backend.
+  sub_kinematic_state_ = create_subscription<nav_msgs::msg::Odometry>(
+    "/localization/kinematic_state", rclcpp::QoS(1),
+    [this](const nav_msgs::msg::Odometry & msg) {
+      geometry_msgs::msg::TwistStamped current_velocity;
+      current_velocity.header = msg.header;
+      current_velocity.twist = msg.twist.twist;
+      vehicle_stop_checker_.addTwist(current_velocity);
+    });
+
+  const auto adaptor = autoware::component_interface_utils::NodeAdaptor<NodeT>(this);
   group_cli_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   adaptor.init_srv(srv_accept_, this, &MotionNode::on_accept);
   adaptor.init_pub(pub_state_);
@@ -36,7 +47,8 @@ MotionNode::MotionNode(const rclcpp::NodeOptions & options)
   adaptor.init_sub(sub_is_start_requested_, this, &MotionNode::on_is_start_requested);
 
   rclcpp::Rate rate(10);
-  timer_ = rclcpp::create_timer(this, get_clock(), rate.period(), [this]() { on_timer(); });
+  timer_ = autoware::agnocast_wrapper::create_timer(
+    this, get_clock(), rate.period(), [this]() { on_timer(); });
   state_ = State::Unknown;
 }
 

@@ -16,6 +16,8 @@
 #define PERCEPTION_HPP_
 
 #include <autoware/adapi_specs/perception.hpp>
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware/component_interface_specs_universe/perception.hpp>
 #include <rclcpp/rclcpp.hpp>
 
@@ -34,14 +36,18 @@
 namespace autoware::default_adapi
 {
 
-class PerceptionNode : public rclcpp::Node
+class PerceptionNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit PerceptionNode(const rclcpp::NodeOptions & options);
 
 private:
-  Pub<autoware::adapi_specs::perception::DynamicObjectArray> pub_object_recognized_;
-  Sub<autoware::component_interface_specs_universe::perception::ObjectRecognition>
+  // NodeAdaptor deduces its constructor argument separately from NodeT, so the node type has to
+  // be named explicitly here and on every endpoint below.
+  using NodeT = autoware::agnocast_wrapper::Node;
+
+  Pub<autoware::adapi_specs::perception::DynamicObjectArray, NodeT> pub_object_recognized_;
+  Sub<autoware::component_interface_specs_universe::perception::ObjectRecognition, NodeT>
     sub_object_recognized_;
   void object_recognize(
     const autoware::component_interface_specs_universe::perception::ObjectRecognition::Message::

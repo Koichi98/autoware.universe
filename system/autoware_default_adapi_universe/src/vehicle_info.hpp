@@ -16,6 +16,8 @@
 #define VEHICLE_INFO_HPP_
 
 #include <autoware/adapi_specs/vehicle.hpp>
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 // This file should be included after messages.
@@ -24,13 +26,17 @@
 namespace autoware::default_adapi
 {
 
-class VehicleInfoNode : public rclcpp::Node
+class VehicleInfoNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit VehicleInfoNode(const rclcpp::NodeOptions & options);
 
 private:
-  Srv<autoware::adapi_specs::vehicle::Dimensions> srv_dimensions_;
+  // NodeAdaptor deduces its constructor argument separately from NodeT, so the node type has to
+  // be named explicitly here and on every endpoint below.
+  using NodeT = autoware::agnocast_wrapper::Node;
+
+  Srv<autoware::adapi_specs::vehicle::Dimensions, NodeT> srv_dimensions_;
   autoware_adapi_v1_msgs::msg::VehicleDimensions dimensions_;
 };
 

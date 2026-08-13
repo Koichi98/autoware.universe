@@ -16,11 +16,15 @@
 #define MOTION_HPP_
 
 #include <autoware/adapi_specs/motion.hpp>
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware/component_interface_specs_universe/control.hpp>
 #include <autoware/component_interface_utils/rclcpp.hpp>
 #include <autoware/component_interface_utils/status.hpp>
 #include <autoware/motion_utils/vehicle/vehicle_state_checker.hpp>
 #include <rclcpp/rclcpp.hpp>
+
+#include <nav_msgs/msg/odometry.hpp>
 
 // This file should be included after messages.
 #include "utils/types.hpp"
@@ -28,20 +32,30 @@
 namespace autoware::default_adapi
 {
 
-class MotionNode : public rclcpp::Node
+class MotionNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit MotionNode(const rclcpp::NodeOptions & options);
 
 private:
-  autoware::motion_utils::VehicleStopChecker vehicle_stop_checker_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  // NodeAdaptor deduces its constructor argument separately from NodeT, so the node type has to
+  // be named explicitly here and on every endpoint below.
+  using NodeT = autoware::agnocast_wrapper::Node;
+
+  // VehicleStopChecker is hard-wired to rclcpp::Node because it owns its odometry subscription.
+  // VehicleStopCheckerBase is already templated on the node type, so the subscription moves here
+  // and follows this node's backend instead.
+  static constexpr double velocity_buffer_time_sec = 10.0;
+  autoware::motion_utils::VehicleStopCheckerBase vehicle_stop_checker_;
+  AUTOWARE_SUBSCRIPTION_PTR(nav_msgs::msg::Odometry) sub_kinematic_state_;
+
+  AUTOWARE_TIMER_PTR timer_;
   rclcpp::CallbackGroup::SharedPtr group_cli_;
-  Srv<autoware::adapi_specs::motion::AcceptStart> srv_accept_;
-  Pub<autoware::adapi_specs::motion::State> pub_state_;
-  Cli<autoware::component_interface_specs_universe::control::SetPause> cli_set_pause_;
-  Sub<autoware::component_interface_specs_universe::control::IsPaused> sub_is_paused_;
-  Sub<autoware::component_interface_specs_universe::control::IsStartRequested>
+  Srv<autoware::adapi_specs::motion::AcceptStart, NodeT> srv_accept_;
+  Pub<autoware::adapi_specs::motion::State, NodeT> pub_state_;
+  Cli<autoware::component_interface_specs_universe::control::SetPause, NodeT> cli_set_pause_;
+  Sub<autoware::component_interface_specs_universe::control::IsPaused, NodeT> sub_is_paused_;
+  Sub<autoware::component_interface_specs_universe::control::IsStartRequested, NodeT>
     sub_is_start_requested_;
 
   enum class State { Unknown, Pausing, Paused, Starting, Resuming, Resumed, Moving };
