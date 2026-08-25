@@ -16,7 +16,10 @@
 #define MOTION_HPP_
 
 #include <autoware/adapi_specs/motion.hpp>
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware/component_interface_specs_universe/control.hpp>
+#include <autoware/component_interface_specs_universe/localization.hpp>
 #include <autoware/component_interface_utils/rclcpp.hpp>
 #include <autoware/component_interface_utils/status.hpp>
 #include <autoware/motion_utils/vehicle/vehicle_state_checker.hpp>
@@ -28,14 +31,16 @@
 namespace autoware::default_adapi
 {
 
-class MotionNode : public rclcpp::Node
+class MotionNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit MotionNode(const rclcpp::NodeOptions & options);
 
 private:
-  autoware::motion_utils::VehicleStopChecker vehicle_stop_checker_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  // VehicleStopChecker owns an rclcpp subscription, so only its node-agnostic base is used here
+  // and the odometry is fed from the subscription below, which covers the same topic and QoS.
+  autoware::motion_utils::VehicleStopCheckerBase vehicle_stop_checker_;
+  AUTOWARE_TIMER_PTR timer_;
   rclcpp::CallbackGroup::SharedPtr group_cli_;
   Srv<autoware::adapi_specs::motion::AcceptStart> srv_accept_;
   Pub<autoware::adapi_specs::motion::State> pub_state_;
@@ -43,6 +48,8 @@ private:
   Sub<autoware::component_interface_specs_universe::control::IsPaused> sub_is_paused_;
   Sub<autoware::component_interface_specs_universe::control::IsStartRequested>
     sub_is_start_requested_;
+  Sub<autoware::component_interface_specs_universe::localization::KinematicState>
+    sub_kinematic_state_;
 
   enum class State { Unknown, Pausing, Paused, Starting, Resuming, Resumed, Moving };
   State state_;
@@ -63,6 +70,9 @@ private:
       msg);
   void on_is_start_requested(
     const autoware::component_interface_specs_universe::control::IsStartRequested::Message::
+      ConstSharedPtr msg);
+  void on_kinematic_state(
+    const autoware::component_interface_specs_universe::localization::KinematicState::Message::
       ConstSharedPtr msg);
   void on_accept(
     const autoware::adapi_specs::motion::AcceptStart::Service::Request::SharedPtr req,

@@ -16,6 +16,7 @@
 #define VEHICLE_COMMAND_HPP_
 
 #include <autoware/adapi_specs/control.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware/component_interface_specs/control.hpp>
 #include <autoware/component_interface_specs_universe/control.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -26,7 +27,7 @@
 namespace autoware::default_adapi
 {
 
-class VehicleCommandNode : public rclcpp::Node
+class VehicleCommandNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit VehicleCommandNode(const rclcpp::NodeOptions & options);
