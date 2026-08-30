@@ -16,6 +16,7 @@
 #define FAIL_SAFE_HPP_
 
 #include <autoware/adapi_specs/fail_safe.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware/component_interface_specs_universe/system.hpp>
 #include <autoware/component_interface_utils/rclcpp.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -28,7 +29,7 @@
 namespace autoware::default_adapi
 {
 
-class FailSafeNode : public rclcpp::Node
+class FailSafeNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit FailSafeNode(const rclcpp::NodeOptions & options);
