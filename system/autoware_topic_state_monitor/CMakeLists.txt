@@ -11,8 +11,6 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
 
 autoware_agnocast_wrapper_setup(${PROJECT_NAME})
 
-# The diagnostic updater timer and the monitored-topic callback both touch TopicStateMonitor's
-# time buffer, so the executor must not run them concurrently.
 autoware_agnocast_wrapper_register_node(${PROJECT_NAME}
   PLUGIN "autoware::topic_state_monitor::TopicStateMonitorNode"
   EXECUTABLE ${PROJECT_NAME}_node

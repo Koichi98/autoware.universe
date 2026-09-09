@@ -89,11 +89,10 @@ TopicStateMonitorNode::TopicStateMonitorNode(const rclcpp::NodeOptions & node_op
         }
       });
   } else {
+    // The payload is never read, so take the arrival-only callback: it skips the CDR encode the
+    // serialized callback would cost on the Agnocast backend.
     sub_topic_ = this->create_generic_subscription(
-      node_param_.topic, node_param_.topic_type, qos,
-      [this]([[maybe_unused]] std::shared_ptr<rclcpp::SerializedMessage> msg) {
-        topic_state_monitor_->update();
-      });
+      node_param_.topic, node_param_.topic_type, qos, [this] { topic_state_monitor_->update(); });
   }
 
   // Diagnostic Updater
