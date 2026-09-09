@@ -44,8 +44,8 @@ def create_topic_monitor_name(row):
 def create_topic_monitor_node(row, target_container, use_agnocast):
     tf_mode = "" if "topic_type" in row["args"] else "_tf"
     package = FindPackageShare("autoware_topic_state_monitor")
-    # An rclcpp component container does not service Agnocast callbacks, so under Agnocast the
-    # monitors run as standalone processes with the heaphook preloaded instead.
+    # ENABLE_AGNOCAST=1 runs the monitors as standalone processes, =0 loads them into the
+    # component container.
     if use_agnocast:
         launch_file = f"launch/topic_state_monitor{tf_mode}.launch.xml"
         placement = [("ld_preload", LaunchConfiguration("ld_preload_value"))]
