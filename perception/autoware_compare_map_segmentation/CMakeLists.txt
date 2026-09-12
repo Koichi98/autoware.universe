@@ -85,9 +85,12 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE voxel_based_approximate_compare_map_filter_node)
 
 # -- Voxel Based Compare Map Filter --
-rclcpp_components_register_node(${PROJECT_NAME}
+autoware_agnocast_wrapper_register_node(${PROJECT_NAME}
   PLUGIN "autoware::compare_map_segmentation::VoxelBasedCompareMapFilterComponent"
-  EXECUTABLE voxel_based_compare_map_filter_node)
+  EXECUTABLE voxel_based_compare_map_filter_node
+  AGNOCAST_EXECUTOR AgnocastOnlyCallbackIsolatedExecutor
+  ROS2_EXECUTOR SingleThreadedExecutor
+)
 
 # -- Voxel Distance Based Compare Map Filter --
 rclcpp_components_register_node(${PROJECT_NAME}

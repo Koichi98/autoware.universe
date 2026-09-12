@@ -18,20 +18,21 @@
 #include "autoware/compare_map_segmentation/voxel_grid_map_loader.hpp"
 #include "autoware/pointcloud_preprocessor/filter.hpp"
 
+#include <autoware/agnocast_wrapper/diagnostic_updater.hpp>
 #include <autoware_utils/ros/diagnostics_interface.hpp>
 #include <diagnostic_updater/diagnostic_updater.hpp>
 
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/search/pcl_search.h>
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
 
 #include <memory>
 
 namespace autoware::compare_map_segmentation
 {
-class VoxelBasedCompareMapFilterComponent : public autoware::pointcloud_preprocessor::Filter
+class VoxelBasedCompareMapFilterComponent : public autoware::pointcloud_preprocessor::AgnocastFilter
 {
+  using NodeType = autoware::agnocast_wrapper::Node;
+
   using PointCloud2 = sensor_msgs::msg::PointCloud2;
   using PointCloud2ConstPtr = sensor_msgs::msg::PointCloud2::ConstSharedPtr;
 
@@ -45,23 +46,20 @@ protected:
   void input_indices_callback(
     const PointCloud2ConstPtr cloud, const PointIndicesConstPtr indices) override;
 
-  bool convert_output_costly(std::unique_ptr<PointCloud2> & output) override;
+  bool convert_output_costly(OutputMessagePtr & output) override;
 
 private:
   // pcl::SegmentDifferences<pcl::PointXYZ> impl_;
 
   // interfaces
-  std::unique_ptr<VoxelGridMapLoader> voxel_grid_map_loader_;
-  rclcpp::Subscription<PointCloud2>::SharedPtr sub_map_;
-  tf2_ros::Buffer tf_buffer_;
-  tf2_ros::TransformListener tf_listener_;
+  std::unique_ptr<BasicVoxelGridMapLoader<NodeType>> voxel_grid_map_loader_;
 
   // parameters
   double distance_threshold_;
   bool set_map_in_voxel_grid_;
 
   // diagnostics
-  diagnostic_updater::Updater diagnostic_updater_;
+  autoware::agnocast_wrapper::diagnostic_updater::Updater diagnostic_updater_;
   void checkStatus(diagnostic_updater::DiagnosticStatusWrapper & stat);
 
 public:

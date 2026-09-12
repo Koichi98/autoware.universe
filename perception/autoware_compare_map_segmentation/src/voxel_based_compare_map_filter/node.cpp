@@ -34,17 +34,14 @@ namespace autoware::compare_map_segmentation
 
 VoxelBasedCompareMapFilterComponent::VoxelBasedCompareMapFilterComponent(
   const rclcpp::NodeOptions & options)
-: Filter("VoxelBasedCompareMapFilter", options),
-  tf_buffer_(this->get_clock()),
-  tf_listener_(tf_buffer_),
-  diagnostic_updater_(this)
+: AgnocastFilter("VoxelBasedCompareMapFilter", options), diagnostic_updater_(this)
 {
   // initialize debug tool
   {
-    using autoware_utils::DebugPublisher;
     using autoware_utils::StopWatch;
     stop_watch_ptr_ = std::make_unique<StopWatch<std::chrono::milliseconds>>();
-    debug_publisher_ = std::make_unique<DebugPublisher>(this, "voxel_based_compare_map_filter");
+    debug_publisher_ = std::make_unique<autoware_utils::BasicDebugPublisher<NodeType>>(
+      this, "voxel_based_compare_map_filter");
     stop_watch_ptr_->tic("cyclic_time");
     stop_watch_ptr_->tic("processing_time");
   }
@@ -69,10 +66,10 @@ VoxelBasedCompareMapFilterComponent::VoxelBasedCompareMapFilterComponent(
   if (use_dynamic_map_loading) {
     rclcpp::CallbackGroup::SharedPtr main_callback_group;
     main_callback_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-    voxel_grid_map_loader_ = std::make_unique<VoxelGridDynamicMapLoader>(
+    voxel_grid_map_loader_ = std::make_unique<BasicVoxelGridDynamicMapLoader<NodeType>>(
       this, distance_threshold_, downsize_ratio_z_axis, &tf_input_frame_, main_callback_group);
   } else {
-    voxel_grid_map_loader_ = std::make_unique<VoxelGridStaticMapLoader>(
+    voxel_grid_map_loader_ = std::make_unique<BasicVoxelGridStaticMapLoader<NodeType>>(
       this, distance_threshold_, downsize_ratio_z_axis, &tf_input_frame_);
   }
   tf_input_frame_ = *(voxel_grid_map_loader_->tf_map_input_frame_);
@@ -119,7 +116,7 @@ void VoxelBasedCompareMapFilterComponent::input_indices_callback(
 
     try {
       // Lookup the transform from input frame to "map"
-      geometry_msgs::msg::TransformStamped transform_stamped = tf_buffer_.lookupTransform(
+      geometry_msgs::msg::TransformStamped transform_stamped = tf_buffer_->lookupTransform(
         tf_input_frame_, tf_input_orig_frame_, rclcpp::Time(cloud->header.stamp),
         rclcpp::Duration::from_seconds(0.0));
 
@@ -148,8 +145,7 @@ void VoxelBasedCompareMapFilterComponent::input_indices_callback(
   compute_publish(cloud_tf, vindices);
 }
 
-bool VoxelBasedCompareMapFilterComponent::convert_output_costly(
-  std::unique_ptr<PointCloud2> & output)
+bool VoxelBasedCompareMapFilterComponent::convert_output_costly(OutputMessagePtr & output)
 {
   if (!output || output->fields.empty()) {
     RCLCPP_ERROR(this->get_logger(), "Invalid output point cloud!");
@@ -173,9 +169,9 @@ bool VoxelBasedCompareMapFilterComponent::convert_output_costly(
   }
   // A. the output frame is set, transform the point cloud to the output frame
   if (!tf_output_frame_.empty() && output->header.frame_id != tf_output_frame_) {
-    auto cloud_transformed = std::make_unique<PointCloud2>();
+    auto cloud_transformed = allocate_output_message();
     try {
-      geometry_msgs::msg::TransformStamped transform_stamped = tf_buffer_.lookupTransform(
+      geometry_msgs::msg::TransformStamped transform_stamped = tf_buffer_->lookupTransform(
         tf_output_frame_, output->header.frame_id, rclcpp::Time(output->header.stamp),
         rclcpp::Duration::from_seconds(0.0));
       tf2::doTransform(*output, *cloud_transformed, transform_stamped);
@@ -190,9 +186,9 @@ bool VoxelBasedCompareMapFilterComponent::convert_output_costly(
   }
   // B. the output frame is not set, the output frame is the same as the input frame
   if (tf_output_frame_.empty() && output->header.frame_id != tf_input_orig_frame_) {
-    auto cloud_transformed = std::make_unique<PointCloud2>();
+    auto cloud_transformed = allocate_output_message();
     try {
-      geometry_msgs::msg::TransformStamped transform_stamped = tf_buffer_.lookupTransform(
+      geometry_msgs::msg::TransformStamped transform_stamped = tf_buffer_->lookupTransform(
         tf_input_orig_frame_, output->header.frame_id, rclcpp::Time(output->header.stamp),
         rclcpp::Duration::from_seconds(0.0));
       tf2::doTransform(*output, *cloud_transformed, transform_stamped);
