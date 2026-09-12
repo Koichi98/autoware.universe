@@ -23,18 +23,18 @@
 
 namespace autoware::compare_map_segmentation
 {
-VoxelGridMapLoader::VoxelGridMapLoader(
-  rclcpp::Node * node, double leaf_size, double downsize_ratio_z_axis,
-  std::string * tf_map_input_frame)
+template <typename NodeT>
+BasicVoxelGridMapLoader<NodeT>::BasicVoxelGridMapLoader(
+  NodeT * node, double leaf_size, double downsize_ratio_z_axis, std::string * tf_map_input_frame)
 : logger_(node->get_logger()),
   voxel_leaf_size_(leaf_size),
   downsize_ratio_z_axis_(downsize_ratio_z_axis)
 {
   tf_map_input_frame_ = tf_map_input_frame;
 
-  downsampled_map_pub_ = node->create_publisher<sensor_msgs::msg::PointCloud2>(
+  downsampled_map_pub_ = node->template create_publisher<sensor_msgs::msg::PointCloud2>(
     "debug/downsampled_map/pointcloud", rclcpp::QoS{1}.transient_local());
-  debug_ = node->declare_parameter<bool>("publish_debug_pcd");
+  debug_ = node->template declare_parameter<bool>("publish_debug_pcd");
 
   // initiate diagnostic status
   diagnostics_map_voxel_status_.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
@@ -42,7 +42,8 @@ VoxelGridMapLoader::VoxelGridMapLoader(
 }
 
 // check if the pointcloud is filterable with PCL voxel grid
-bool VoxelGridMapLoader::isFeasibleWithPCLVoxelGrid(
+template <typename NodeT>
+bool BasicVoxelGridMapLoader<NodeT>::isFeasibleWithPCLVoxelGrid(
   const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & pointcloud,
   const pcl::VoxelGrid<pcl::PointXYZ> & voxel_grid)
 {
@@ -84,7 +85,8 @@ bool VoxelGridMapLoader::isFeasibleWithPCLVoxelGrid(
   return true;
 }
 
-void VoxelGridMapLoader::publish_downsampled_map(
+template <typename NodeT>
+void BasicVoxelGridMapLoader<NodeT>::publish_downsampled_map(
   const pcl::PointCloud<pcl::PointXYZ> & downsampled_pc)
 {
   sensor_msgs::msg::PointCloud2 downsampled_map_msg;
@@ -93,7 +95,8 @@ void VoxelGridMapLoader::publish_downsampled_map(
   downsampled_map_pub_->publish(downsampled_map_msg);
 }
 
-bool VoxelGridMapLoader::is_close_to_neighbor_voxels(
+template <typename NodeT>
+bool BasicVoxelGridMapLoader<NodeT>::is_close_to_neighbor_voxels(
   const pcl::PointXYZ & point, const double distance_threshold, VoxelGridPointXYZ & voxel,
   pcl::search::Search<pcl::PointXYZ>::Ptr tree)
 {
@@ -116,7 +119,8 @@ bool VoxelGridMapLoader::is_close_to_neighbor_voxels(
   return true;
 }
 
-bool VoxelGridMapLoader::is_close_to_neighbor_voxels(
+template <typename NodeT>
+bool BasicVoxelGridMapLoader<NodeT>::is_close_to_neighbor_voxels(
   const pcl::PointXYZ & point, const double distance_threshold, const FilteredPointCloudPtr & map,
   VoxelGridPointXYZ & voxel) const
 {
@@ -298,7 +302,8 @@ bool VoxelGridMapLoader::is_close_to_neighbor_voxels(
   return false;
 }
 
-bool VoxelGridMapLoader::is_in_voxel(
+template <typename NodeT>
+bool BasicVoxelGridMapLoader<NodeT>::is_in_voxel(
   const pcl::PointXYZ & src_point, const pcl::PointXYZ & target_point,
   const double distance_threshold, const FilteredPointCloudPtr & map,
   VoxelGridPointXYZ & voxel) const
@@ -324,19 +329,20 @@ bool VoxelGridMapLoader::is_in_voxel(
   return false;
 }
 
-VoxelGridStaticMapLoader::VoxelGridStaticMapLoader(
-  rclcpp::Node * node, double leaf_size, double downsize_ratio_z_axis,
-  std::string * tf_map_input_frame)
-: VoxelGridMapLoader(node, leaf_size, downsize_ratio_z_axis, tf_map_input_frame)
+template <typename NodeT>
+BasicVoxelGridStaticMapLoader<NodeT>::BasicVoxelGridStaticMapLoader(
+  NodeT * node, double leaf_size, double downsize_ratio_z_axis, std::string * tf_map_input_frame)
+: BasicVoxelGridMapLoader<NodeT>(node, leaf_size, downsize_ratio_z_axis, tf_map_input_frame)
 {
   voxel_leaf_size_z_ = voxel_leaf_size_ * downsize_ratio_z_axis_;
-  sub_map_ = node->create_subscription<sensor_msgs::msg::PointCloud2>(
+  sub_map_ = node->template create_subscription<sensor_msgs::msg::PointCloud2>(
     "map", rclcpp::QoS{1}.transient_local(),
-    std::bind(&VoxelGridStaticMapLoader::onMapCallback, this, std::placeholders::_1));
+    [this](const sensor_msgs::msg::PointCloud2::ConstSharedPtr map) { onMapCallback(map); });
   RCLCPP_INFO(logger_, "VoxelGridStaticMapLoader initialized.\n");
 }
 
-void VoxelGridStaticMapLoader::onMapCallback(
+template <typename NodeT>
+void BasicVoxelGridStaticMapLoader<NodeT>::onMapCallback(
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr map)
 {
   pcl::PointCloud<pcl::PointXYZ> map_pcl;
@@ -358,7 +364,8 @@ void VoxelGridStaticMapLoader::onMapCallback(
     publish_downsampled_map(*voxel_map_ptr_);
   }
 }
-bool VoxelGridStaticMapLoader::is_close_to_map(
+template <typename NodeT>
+bool BasicVoxelGridStaticMapLoader<NodeT>::is_close_to_map(
   const pcl::PointXYZ & point, const double distance_threshold)
 {
   if (!is_initialized_.load(std::memory_order_acquire)) {
@@ -370,46 +377,62 @@ bool VoxelGridStaticMapLoader::is_close_to_map(
   return false;
 }
 
-VoxelGridDynamicMapLoader::VoxelGridDynamicMapLoader(
-  rclcpp::Node * node, double leaf_size, double downsize_ratio_z_axis,
-  std::string * tf_map_input_frame, rclcpp::CallbackGroup::SharedPtr main_callback_group)
-: VoxelGridMapLoader(node, leaf_size, downsize_ratio_z_axis, tf_map_input_frame)
+template <typename NodeT>
+BasicVoxelGridDynamicMapLoader<NodeT>::BasicVoxelGridDynamicMapLoader(
+  NodeT * node, double leaf_size, double downsize_ratio_z_axis, std::string * tf_map_input_frame,
+  rclcpp::CallbackGroup::SharedPtr main_callback_group)
+: BasicVoxelGridMapLoader<NodeT>(node, leaf_size, downsize_ratio_z_axis, tf_map_input_frame)
 {
   voxel_leaf_size_z_ = voxel_leaf_size_ * downsize_ratio_z_axis_;
-  auto timer_interval_ms = node->declare_parameter<int>("timer_interval_ms");
-  map_update_distance_threshold_ = node->declare_parameter<double>("map_update_distance_threshold");
-  map_loader_radius_ = node->declare_parameter<double>("map_loader_radius");
-  max_map_grid_size_ = node->declare_parameter<double>("max_map_grid_size");
-  auto main_sub_opt = rclcpp::SubscriptionOptions();
+  auto timer_interval_ms = node->template declare_parameter<int>("timer_interval_ms");
+  map_update_distance_threshold_ =
+    node->template declare_parameter<double>("map_update_distance_threshold");
+  map_loader_radius_ = node->template declare_parameter<double>("map_loader_radius");
+  max_map_grid_size_ = node->template declare_parameter<double>("max_map_grid_size");
+  std::conditional_t<
+    std::is_same_v<NodeT, autoware::agnocast_wrapper::Node>, AUTOWARE_SUBSCRIPTION_OPTIONS,
+    rclcpp::SubscriptionOptions>
+    main_sub_opt;
   main_sub_opt.callback_group = main_callback_group;
-  sub_kinematic_state_ = node->create_subscription<nav_msgs::msg::Odometry>(
+  sub_kinematic_state_ = node->template create_subscription<nav_msgs::msg::Odometry>(
     "kinematic_state", rclcpp::QoS{1},
-    std::bind(&VoxelGridDynamicMapLoader::onEstimatedPoseCallback, this, std::placeholders::_1),
+    [this](const nav_msgs::msg::Odometry::ConstSharedPtr msg) { onEstimatedPoseCallback(msg); },
     main_sub_opt);
   RCLCPP_INFO(logger_, "VoxelGridDynamicMapLoader initialized.\n");
 
   client_callback_group_ =
     node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  map_update_client_ = node->create_client<autoware_map_msgs::srv::GetDifferentialPointCloudMap>(
-    "map_loader_service", AUTOWARE_DEFAULT_SERVICES_QOS_PROFILE(), client_callback_group_);
+  map_update_client_ =
+    node->template create_client<autoware_map_msgs::srv::GetDifferentialPointCloudMap>(
+      "map_loader_service", AUTOWARE_DEFAULT_SERVICES_QOS_PROFILE(), client_callback_group_);
 
-  while (!map_update_client_->wait_for_service(std::chrono::seconds(1)) && rclcpp::ok()) {
+  while (!map_update_client_->wait_for_service(std::chrono::seconds(1)) &&
+         autoware::agnocast_wrapper::ok()) {
     RCLCPP_INFO(logger_, "service not available, waiting again ...");
   }
 
   const auto period_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
     std::chrono::milliseconds(timer_interval_ms));
   timer_callback_group_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  map_update_timer_ = rclcpp::create_timer(
-    node, node->get_clock(), period_ns, std::bind(&VoxelGridDynamicMapLoader::timer_callback, this),
-    timer_callback_group_);
+  if constexpr (std::is_same_v<NodeT, autoware::agnocast_wrapper::Node>) {
+    map_update_timer_ = autoware::agnocast_wrapper::create_timer(
+      node, node->get_clock(), period_ns, [this]() { this->timer_callback(); },
+      timer_callback_group_);
+  } else {
+    map_update_timer_ = rclcpp::create_timer(
+      node, node->get_clock(), period_ns, [this]() { this->timer_callback(); },
+      timer_callback_group_);
+  }
 }
-void VoxelGridDynamicMapLoader::onEstimatedPoseCallback(nav_msgs::msg::Odometry::ConstSharedPtr msg)
+template <typename NodeT>
+void BasicVoxelGridDynamicMapLoader<NodeT>::onEstimatedPoseCallback(
+  nav_msgs::msg::Odometry::ConstSharedPtr msg)
 {
   std::lock_guard<std::mutex> lock(dynamic_map_loader_mutex_);
   current_position_ = msg->pose.pose.position;
 }
-bool VoxelGridDynamicMapLoader::is_close_to_next_map_grid(
+template <typename NodeT>
+bool BasicVoxelGridDynamicMapLoader<NodeT>::is_close_to_next_map_grid(
   const pcl::PointXYZ & point, const int current_map_grid_index, const double distance_threshold,
   const double origin_x, const double origin_y, const double map_grid_size_x,
   const double map_grid_size_y, const int map_grids_x)
@@ -434,7 +457,8 @@ bool VoxelGridDynamicMapLoader::is_close_to_next_map_grid(
   return false;
 }
 
-bool VoxelGridDynamicMapLoader::is_close_to_map(
+template <typename NodeT>
+bool BasicVoxelGridDynamicMapLoader<NodeT>::is_close_to_map(
   const pcl::PointXYZ & point, const double distance_threshold)
 {
   double origin_x, origin_y, map_grid_size_x, map_grid_size_y;
@@ -498,7 +522,8 @@ bool VoxelGridDynamicMapLoader::is_close_to_map(
 
   return false;
 }
-void VoxelGridDynamicMapLoader::timer_callback()
+template <typename NodeT>
+void BasicVoxelGridDynamicMapLoader<NodeT>::timer_callback()
 {
   std::optional<geometry_msgs::msg::Point> current_position;
   {
@@ -518,7 +543,8 @@ void VoxelGridDynamicMapLoader::timer_callback()
   }
 }
 
-bool VoxelGridDynamicMapLoader::should_update_map(
+template <typename NodeT>
+bool BasicVoxelGridDynamicMapLoader<NodeT>::should_update_map(
   const geometry_msgs::msg::Point & current_point, const geometry_msgs::msg::Point & last_point,
   const double map_update_distance_threshold)
 {
@@ -528,7 +554,9 @@ bool VoxelGridDynamicMapLoader::should_update_map(
   return false;
 }
 
-void VoxelGridDynamicMapLoader::request_update_map(const geometry_msgs::msg::Point & position)
+template <typename NodeT>
+void BasicVoxelGridDynamicMapLoader<NodeT>::request_update_map(
+  const geometry_msgs::msg::Point & position)
 {
   auto request = std::make_shared<autoware_map_msgs::srv::GetDifferentialPointCloudMap::Request>();
   request->area.center_x = position.x;
@@ -536,24 +564,30 @@ void VoxelGridDynamicMapLoader::request_update_map(const geometry_msgs::msg::Poi
   request->area.radius = map_loader_radius_;
   request->cached_ids = getCurrentMapIDs();
 
-  auto callback =
-    [this](
-      rclcpp::Client<autoware_map_msgs::srv::GetDifferentialPointCloudMap>::SharedFuture future) {
-      try {
-        auto result = future.get();
-        if (result->new_pointcloud_with_ids.empty() && result->ids_to_remove.empty()) {
-          return;
-        }
-        updateDifferentialMapCells(result->new_pointcloud_with_ids, result->ids_to_remove);
-        if (debug_) {
-          publish_downsampled_map(getCurrentDownsampledMapPc());
-        }
-      } catch (const std::exception & e) {
-        RCLCPP_ERROR(logger_, "Failed to get differential pointcloud map: %s", e.what());
+  using MapUpdateClient = typename decltype(map_update_client_)::element_type;
+  auto callback = [this](typename MapUpdateClient::SharedFuture future) {
+    try {
+      auto result = future.get();
+      if (result->new_pointcloud_with_ids.empty() && result->ids_to_remove.empty()) {
+        return;
       }
-    };
+      updateDifferentialMapCells(result->new_pointcloud_with_ids, result->ids_to_remove);
+      if (debug_) {
+        publish_downsampled_map(getCurrentDownsampledMapPc());
+      }
+    } catch (const std::exception & e) {
+      RCLCPP_ERROR(logger_, "Failed to get differential pointcloud map: %s", e.what());
+    }
+  };
 
   map_update_client_->async_send_request(request, callback);
 }
+
+template class BasicVoxelGridMapLoader<rclcpp::Node>;
+template class BasicVoxelGridMapLoader<autoware::agnocast_wrapper::Node>;
+template class BasicVoxelGridStaticMapLoader<rclcpp::Node>;
+template class BasicVoxelGridStaticMapLoader<autoware::agnocast_wrapper::Node>;
+template class BasicVoxelGridDynamicMapLoader<rclcpp::Node>;
+template class BasicVoxelGridDynamicMapLoader<autoware::agnocast_wrapper::Node>;
 
 }  // namespace autoware::compare_map_segmentation
