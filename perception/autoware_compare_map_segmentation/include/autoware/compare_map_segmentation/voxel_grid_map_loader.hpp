@@ -15,6 +15,7 @@
 #ifndef AUTOWARE__COMPARE_MAP_SEGMENTATION__VOXEL_GRID_MAP_LOADER_HPP_
 #define AUTOWARE__COMPARE_MAP_SEGMENTATION__VOXEL_GRID_MAP_LOADER_HPP_
 
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include <autoware_map_msgs/srv/get_differential_point_cloud_map.hpp>
@@ -29,9 +30,11 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -89,9 +92,20 @@ public:
   inline Eigen::Array4f get_inverse_leaf_size() const { return inverse_leaf_size_; }
 };
 
-class VoxelGridMapLoader
+/// Templated on the node type so the loader can be owned by a filter running on either
+/// rclcpp::Node or autoware::agnocast_wrapper::Node.
+template <typename NodeT = rclcpp::Node>
+class BasicVoxelGridMapLoader
 {
 protected:
+  template <typename MessageT>
+  using PublisherPtr = decltype(std::declval<NodeT *>()->template create_publisher<MessageT>(
+    std::string{}, rclcpp::QoS(1)));
+
+  template <typename MessageT>
+  using SubscriptionPtr = decltype(std::declval<NodeT *>()->template create_subscription<MessageT>(
+    std::string{}, rclcpp::QoS(1), std::function<void(const typename MessageT::ConstSharedPtr)>{}));
+
   rclcpp::Logger logger_;
 
   // parameters
@@ -101,7 +115,7 @@ protected:
   bool debug_ = false;
 
   // interfaces
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr downsampled_map_pub_;
+  PublisherPtr<sensor_msgs::msg::PointCloud2> downsampled_map_pub_;
 
   // diagnostics
   bool isFeasibleWithPCLVoxelGrid(
@@ -112,11 +126,10 @@ public:
   using VoxelGridPointXYZ = VoxelGridEx<pcl::PointXYZ>;
   using FilteredPointCloud = typename pcl::Filter<pcl::PointXYZ>::PointCloud;
   using FilteredPointCloudPtr = typename FilteredPointCloud::Ptr;
-  explicit VoxelGridMapLoader(
-    rclcpp::Node * node, double leaf_size, double downsize_ratio_z_axis,
-    std::string * tf_map_input_frame);
+  explicit BasicVoxelGridMapLoader(
+    NodeT * node, double leaf_size, double downsize_ratio_z_axis, std::string * tf_map_input_frame);
 
-  virtual ~VoxelGridMapLoader() = default;
+  virtual ~BasicVoxelGridMapLoader() = default;
 
   virtual bool is_close_to_map(const pcl::PointXYZ & point, const double distance_threshold) = 0;
   static bool is_close_to_neighbor_voxels(
@@ -138,27 +151,57 @@ public:
   DiagStatus get_diag_status() const { return diagnostics_map_voxel_status_; }
 };
 
-class VoxelGridStaticMapLoader : public VoxelGridMapLoader
+template <typename NodeT = rclcpp::Node>
+class BasicVoxelGridStaticMapLoader : public BasicVoxelGridMapLoader<NodeT>
 {
 protected:
+  using Base = BasicVoxelGridMapLoader<NodeT>;
+  using Base::debug_;
+  using Base::downsize_ratio_z_axis_;
+  using Base::is_close_to_neighbor_voxels;
+  using Base::isFeasibleWithPCLVoxelGrid;
+  using Base::logger_;
+  using Base::publish_downsampled_map;
+  using Base::tf_map_input_frame_;
+  using Base::voxel_leaf_size_;
+  using Base::voxel_leaf_size_z_;
+  using typename Base::FilteredPointCloudPtr;
+  using typename Base::VoxelGridPointXYZ;
+
   VoxelGridPointXYZ voxel_grid_;
   FilteredPointCloudPtr voxel_map_ptr_;
   std::atomic_bool is_initialized_{false};
 
   // interface of map subscription
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_map_;
+  typename Base::template SubscriptionPtr<sensor_msgs::msg::PointCloud2> sub_map_;
 
 public:
-  explicit VoxelGridStaticMapLoader(
-    rclcpp::Node * node, double leaf_size, double downsize_ratio_z_axis,
-    std::string * tf_map_input_frame);
+  explicit BasicVoxelGridStaticMapLoader(
+    NodeT * node, double leaf_size, double downsize_ratio_z_axis, std::string * tf_map_input_frame);
   virtual void onMapCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr map);
   bool is_close_to_map(const pcl::PointXYZ & point, const double distance_threshold) override;
 };
 
-class VoxelGridDynamicMapLoader : public VoxelGridMapLoader
+template <typename NodeT = rclcpp::Node>
+class BasicVoxelGridDynamicMapLoader : public BasicVoxelGridMapLoader<NodeT>
 {
 protected:
+  using Base = BasicVoxelGridMapLoader<NodeT>;
+  using Base::debug_;
+  using Base::diagnostics_map_voxel_status_;
+  using Base::downsize_ratio_z_axis_;
+  using Base::is_close_to_neighbor_voxels;
+  using Base::is_in_voxel;
+  using Base::isFeasibleWithPCLVoxelGrid;
+  using Base::logger_;
+  using Base::publish_downsampled_map;
+  using Base::tf_map_input_frame_;
+  using Base::voxel_leaf_size_;
+  using Base::voxel_leaf_size_z_;
+  using typename Base::FilteredPointCloud;
+  using typename Base::FilteredPointCloudPtr;
+  using typename Base::VoxelGridPointXYZ;
+
   struct MapGridVoxelInfo
   {
     VoxelGridPointXYZ map_cell_voxel_grid;
@@ -172,16 +215,22 @@ protected:
   /** \brief Map to hold loaded map grid id and it's voxel filter */
   VoxelGridDict current_voxel_grid_dict_;
   std::mutex dynamic_map_loader_mutex_;
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_kinematic_state_;
+  typename Base::template SubscriptionPtr<nav_msgs::msg::Odometry> sub_kinematic_state_;
 
   std::optional<geometry_msgs::msg::Point> current_position_ = std::nullopt;
   std::optional<geometry_msgs::msg::Point> last_updated_position_ = std::nullopt;
-  rclcpp::TimerBase::SharedPtr map_update_timer_;
+  // The wrapper node hands out its own timer handle; the rclcpp one has no common base with it.
+  std::conditional_t<
+    std::is_same_v<NodeT, autoware::agnocast_wrapper::Node>, AUTOWARE_TIMER_PTR,
+    rclcpp::TimerBase::SharedPtr>
+    map_update_timer_;
   double map_update_distance_threshold_;
   double map_loader_radius_;
   double max_map_grid_size_;
-  rclcpp::Client<autoware_map_msgs::srv::GetDifferentialPointCloudMap>::SharedPtr
-    map_update_client_;
+  decltype(std::declval<NodeT *>()
+             ->template create_client<autoware_map_msgs::srv::GetDifferentialPointCloudMap>(
+               std::string{}, rmw_qos_profile_t{},
+               rclcpp::CallbackGroup::SharedPtr{})) map_update_client_;
   rclcpp::CallbackGroup::SharedPtr client_callback_group_;
   rclcpp::CallbackGroup::SharedPtr timer_callback_group_;
 
@@ -207,9 +256,9 @@ protected:
   float origin_y_;
 
 public:
-  explicit VoxelGridDynamicMapLoader(
-    rclcpp::Node * node, double leaf_size, double downsize_ratio_z_axis,
-    std::string * tf_map_input_frame, rclcpp::CallbackGroup::SharedPtr main_callback_group);
+  explicit BasicVoxelGridDynamicMapLoader(
+    NodeT * node, double leaf_size, double downsize_ratio_z_axis, std::string * tf_map_input_frame,
+    rclcpp::CallbackGroup::SharedPtr main_callback_group);
   void onEstimatedPoseCallback(nav_msgs::msg::Odometry::ConstSharedPtr msg);
 
   void timer_callback();
@@ -355,6 +404,10 @@ public:
     current_voxel_grid_dict_.emplace(map_cell_to_add.cell_id, current_voxel_grid_list_item);
   }
 };
+
+using VoxelGridMapLoader = BasicVoxelGridMapLoader<rclcpp::Node>;
+using VoxelGridStaticMapLoader = BasicVoxelGridStaticMapLoader<rclcpp::Node>;
+using VoxelGridDynamicMapLoader = BasicVoxelGridDynamicMapLoader<rclcpp::Node>;
 
 }  // namespace autoware::compare_map_segmentation
 

@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(autoware_compare_map_segmentation)
 
 find_package(autoware_cmake REQUIRED)
+find_package(autoware_agnocast_wrapper REQUIRED)
 autoware_package()
 
 find_package(OpenCV REQUIRED)
@@ -41,6 +42,7 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 ament_target_dependencies(${PROJECT_NAME}
+  autoware_agnocast_wrapper
   autoware_qos_utils
   grid_map_pcl
   grid_map_ros
