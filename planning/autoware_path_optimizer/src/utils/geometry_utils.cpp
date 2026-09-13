@@ -125,14 +125,14 @@ Polygon2d createDrivablePolygon(
 
   // left bound
   for (const auto & p : left_bound) {
-    drivable_area_poly.outer().push_back(Point2d(p.x, p.y));
+    drivable_area_poly.outer().emplace_back(p.x, p.y);
   }
 
   // right bound
   auto reversed_right_bound = right_bound;
   std::reverse(reversed_right_bound.begin(), reversed_right_bound.end());
   for (const auto & p : reversed_right_bound) {
-    drivable_area_poly.outer().push_back(Point2d(p.x, p.y));
+    drivable_area_poly.outer().emplace_back(p.x, p.y);
   }
 
   drivable_area_poly.outer().push_back(drivable_area_poly.outer().front());
@@ -168,18 +168,15 @@ bool isOutsideDrivableAreaFromRectangleFootprint(
     autoware_utils::calc_offset_pose(pose, -base_to_rear, base_to_left, 0.0).position;
 
   if (use_footprint_polygon_for_outside_drivable_area_check) {
-    // calculate footprint polygon
-    LinearRing2d base_footprint = vehicle_info.createFootprint();
+    // calculate footprint polygon at pose position and orientation
+    LinearRing2d footprint_polygon = vehicle_info.createFootprint(0.0, pose);
 
     // remove center point
-    auto center_left_index = base_footprint.begin() + 5;
-    auto center_right_index = base_footprint.begin() + 2;
+    auto center_left_index = footprint_polygon.begin() + 5;
+    auto center_right_index = footprint_polygon.begin() + 2;
 
-    base_footprint.erase(center_left_index);
-    base_footprint.erase(center_right_index);
-
-    auto footprint_polygon =
-      autoware_utils::transform_vector(base_footprint, autoware_utils::pose2transform(pose));
+    footprint_polygon.erase(center_left_index);
+    footprint_polygon.erase(center_right_index);
 
     // calculate boundary line strings
     LineString2d left_bound_line;
