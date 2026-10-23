@@ -16,6 +16,8 @@
 #define VEHICLE_STATUS_HPP_
 
 #include <autoware/adapi_specs/vehicle.hpp>
+#include <autoware/agnocast_wrapper/autoware_agnocast_wrapper.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware/component_interface_specs_universe/localization.hpp>
 #include <autoware/component_interface_specs_universe/map.hpp>
 #include <autoware/component_interface_specs_universe/vehicle.hpp>
@@ -33,7 +35,7 @@
 namespace autoware::default_adapi
 {
 
-class VehicleStatusNode : public rclcpp::Node
+class VehicleStatusNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit VehicleStatusNode(const rclcpp::NodeOptions & options);
@@ -52,7 +54,7 @@ private:
   Sub<autoware::component_interface_specs_universe::vehicle::HazardLightStatus> sub_hazard_light_;
   Sub<autoware::component_interface_specs_universe::vehicle::EnergyStatus> sub_energy_level_;
   Sub<autoware::component_interface_specs_universe::map::MapProjectorInfo> sub_map_projector_info_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  AUTOWARE_TIMER_PTR timer_;
 
   autoware::component_interface_specs_universe::localization::KinematicState::Message::
     ConstSharedPtr kinematic_state_msgs_;

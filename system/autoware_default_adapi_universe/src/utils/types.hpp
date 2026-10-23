@@ -15,19 +15,25 @@
 #ifndef UTILS__TYPES_HPP_
 #define UTILS__TYPES_HPP_
 
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware/component_interface_utils/rclcpp.hpp>
 
 namespace autoware::default_adapi
 {
 
+// Every node in this package derives from this, and the endpoint wrappers below are templated on
+// the node type, so name it once here. NodeAdaptor deduces its constructor argument separately
+// from its node type, so each node has to spell NodeAdaptor<NodeT> rather than rely on CTAD.
+using NodeT = autoware::agnocast_wrapper::Node;
+
 template <class T>
-using Pub = typename autoware::component_interface_utils::Publisher<T>::SharedPtr;
+using Pub = typename autoware::component_interface_utils::Publisher<T, NodeT>::SharedPtr;
 template <class T>
-using Sub = typename autoware::component_interface_utils::Subscription<T>::SharedPtr;
+using Sub = typename autoware::component_interface_utils::Subscription<T, NodeT>::SharedPtr;
 template <class T>
-using Cli = typename autoware::component_interface_utils::Client<T>::SharedPtr;
+using Cli = typename autoware::component_interface_utils::Client<T, NodeT>::SharedPtr;
 template <class T>
-using Srv = typename autoware::component_interface_utils::Service<T>::SharedPtr;
+using Srv = typename autoware::component_interface_utils::Service<T, NodeT>::SharedPtr;
 
 }  // namespace autoware::default_adapi
 

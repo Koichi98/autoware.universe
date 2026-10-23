@@ -16,6 +16,7 @@
 #define PERCEPTION_HPP_
 
 #include <autoware/adapi_specs/perception.hpp>
+#include <autoware/agnocast_wrapper/node.hpp>
 #include <autoware/component_interface_specs_universe/perception.hpp>
 #include <rclcpp/rclcpp.hpp>
 
@@ -34,7 +35,7 @@
 namespace autoware::default_adapi
 {
 
-class PerceptionNode : public rclcpp::Node
+class PerceptionNode : public autoware::agnocast_wrapper::Node
 {
 public:
   explicit PerceptionNode(const rclcpp::NodeOptions & options);

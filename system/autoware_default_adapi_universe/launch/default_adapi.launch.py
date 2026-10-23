@@ -27,16 +27,33 @@ from launch_ros.descriptions import ComposableNode
 from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
 
+CORE = "autoware_default_adapi"
 UNIVERSE = "autoware_default_adapi_universe"
 
-# Nodes derived from autoware::agnocast_wrapper::Node, as (node name, class name, executable).
-# Composed like any other node under ENABLE_AGNOCAST=0, where that base is backed by rclcpp;
-# run as their own process under =1, where they need an AgnocastOnly executor that a shared
-# component container cannot provide.
+# Every node started here derives from autoware::agnocast_wrapper::Node, as
+# (package, node name, class name, executable). Composed like any other node under
+# ENABLE_AGNOCAST=0, where that base is backed by rclcpp; run as their own process under =1,
+# where they need an AgnocastOnly executor that a shared component container cannot provide.
 AGNOCAST_WRAPPER_NODES = [
-    ("diagnostics", "DiagnosticsNode", "diagnostics_node"),
-    ("manual/local", "ManualControlNode", "manual_control_node"),
-    ("manual/remote", "ManualControlNode", "manual_control_node"),
+    (CORE, "interface", "InterfaceNode", "interface_node"),
+    (CORE, "localization", "LocalizationNode", "localization_node"),
+    (CORE, "routing", "RoutingNode", "routing_node"),
+    (UNIVERSE, "autoware_state", "AutowareStateNode", "autoware_state_node"),
+    (UNIVERSE, "diagnostics", "DiagnosticsNode", "diagnostics_node"),
+    (UNIVERSE, "fail_safe", "FailSafeNode", "fail_safe_node"),
+    (UNIVERSE, "heartbeat", "HeartbeatNode", "heartbeat_node"),
+    (UNIVERSE, "manual/local", "ManualControlNode", "manual_control_node"),
+    (UNIVERSE, "manual/remote", "ManualControlNode", "manual_control_node"),
+    (UNIVERSE, "motion", "MotionNode", "motion_node"),
+    (UNIVERSE, "mrm_request", "MrmRequestNode", "mrm_request_node"),
+    (UNIVERSE, "operation_mode", "OperationModeNode", "operation_mode_node"),
+    (UNIVERSE, "perception", "PerceptionNode", "perception_node"),
+    (UNIVERSE, "planning", "PlanningNode", "planning_node"),
+    (UNIVERSE, "vehicle_command", "VehicleCommandNode", "vehicle_command_node"),
+    (UNIVERSE, "vehicle_door", "VehicleDoorNode", "vehicle_door_node"),
+    (UNIVERSE, "vehicle_info", "VehicleInfoNode", "vehicle_info_node"),
+    (UNIVERSE, "vehicle_metrics", "VehicleMetricsNode", "vehicle_metrics_node"),
+    (UNIVERSE, "vehicle_status", "VehicleStatusNode", "vehicle_status_node"),
 ]
 
 
@@ -92,31 +109,16 @@ def get_default_config():
 def launch_setup(context, *args, **kwargs):
     use_agnocast = context.perform_substitution(LaunchConfiguration("use_agnocast")) == "1"
 
-    components = [
-        create_api_node("autoware_default_adapi", "interface", "InterfaceNode"),
-        create_api_node("autoware_default_adapi", "localization", "LocalizationNode"),
-        create_api_node("autoware_default_adapi", "routing", "RoutingNode"),
-        create_api_node("autoware_default_adapi_universe", "autoware_state", "AutowareStateNode"),
-        create_api_node("autoware_default_adapi_universe", "fail_safe", "FailSafeNode"),
-        create_api_node("autoware_default_adapi_universe", "heartbeat", "HeartbeatNode"),
-        create_api_node("autoware_default_adapi_universe", "motion", "MotionNode"),
-        create_api_node("autoware_default_adapi_universe", "mrm_request", "MrmRequestNode"),
-        create_api_node("autoware_default_adapi_universe", "operation_mode", "OperationModeNode"),
-        create_api_node("autoware_default_adapi_universe", "perception", "PerceptionNode"),
-        create_api_node("autoware_default_adapi_universe", "planning", "PlanningNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_status", "VehicleStatusNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_command", "VehicleCommandNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_metrics", "VehicleMetricsNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_info", "VehicleInfoNode"),
-        create_api_node("autoware_default_adapi_universe", "vehicle_door", "VehicleDoorNode"),
-    ]
-    nodes = []
-    for node_name, class_name, executable in AGNOCAST_WRAPPER_NODES:
-        if use_agnocast:
-            nodes.append(create_standalone_api_node(UNIVERSE, node_name, executable))
-        else:
-            components.append(create_api_node(UNIVERSE, node_name, class_name))
+    if use_agnocast:
+        return [
+            create_standalone_api_node(package_name, node_name, executable)
+            for package_name, node_name, _, executable in AGNOCAST_WRAPPER_NODES
+        ]
 
+    components = [
+        create_api_node(package_name, node_name, class_name)
+        for package_name, node_name, class_name, _ in AGNOCAST_WRAPPER_NODES
+    ]
     container = ComposableNodeContainer(
         namespace="adapi",
         name="container",
@@ -125,7 +127,7 @@ def launch_setup(context, *args, **kwargs):
         ros_arguments=["--log-level", "adapi.container:=WARN"],
         composable_node_descriptions=components,
     )
-    return [container, *nodes]
+    return [container]
 
 
 def generate_launch_description():
